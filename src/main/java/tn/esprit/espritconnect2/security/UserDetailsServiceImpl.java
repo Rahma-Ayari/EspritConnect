@@ -23,19 +23,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Transactional
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         return userRepository.findByEmail(email)
-                .orElseGet(() -> etudiantRepository.findByEmail(email)
-                        .map(this::ensureUserForEtudiant)
-                        .orElseThrow(() -> new UsernameNotFoundException(
-                                "Utilisateur introuvable avec l'email: " + email)));
-    }
-
-    private User ensureUserForEtudiant(Etudiant e) {
-        return userRepository.findByEmail(e.getEmail())
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .nom(e.getNom())
-                        .email(e.getEmail())
-                        .password(e.getPassword())
-                        .role(Role.ETUDIANT)
-                        .build()));
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "Utilisateur introuvable avec l'email: " + email));
     }
 }

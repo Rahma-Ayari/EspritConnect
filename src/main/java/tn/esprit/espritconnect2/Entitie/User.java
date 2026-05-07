@@ -46,7 +46,7 @@ public class User implements UserDetails {
 
     @Column(name = "enabled")
     @Builder.Default
-    private boolean enabled = true;
+    private boolean enabled = false; // Désactivé par défaut
 
     @PrePersist
     protected void onCreate() {

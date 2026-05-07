@@ -25,6 +25,9 @@ public class AuthController {
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(401)
                     .body(Map.of("message", e.getMessage()));
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            return ResponseEntity.status(403)
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 

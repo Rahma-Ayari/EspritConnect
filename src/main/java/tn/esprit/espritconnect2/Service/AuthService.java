@@ -3,6 +3,7 @@ package tn.esprit.espritconnect2.Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -55,6 +56,8 @@ public class AuthService {
 
         } catch (BadCredentialsException e) {
             throw new BadCredentialsException("Email ou mot de passe incorrect.");
+        } catch (DisabledException e) {
+            throw new DisabledException("Votre compte est en attente de validation par l'administrateur.");
         }
     }
 
@@ -72,6 +75,7 @@ public class AuthService {
                 .email(req.getEmail())
                 .password(encodedPassword)
                 .role(Role.ETUDIANT)
+                .enabled(false) // En attente de validation admin
                 .build();
         userRepository.save(user);
 

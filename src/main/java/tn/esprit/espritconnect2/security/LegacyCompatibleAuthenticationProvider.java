@@ -3,6 +3,7 @@ package tn.esprit.espritconnect2.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -66,7 +67,10 @@ public class LegacyCompatibleAuthenticationProvider implements AuthenticationPro
                 etudiantRepository.save(e);
             });
         }
-
+        if (!user.isEnabled()) {
+            throw new DisabledException("Votre compte est en attente de validation par l'administrateur.");
+        }
+        
         return UsernamePasswordAuthenticationToken.authenticated(
                 user, null, user.getAuthorities());
     }

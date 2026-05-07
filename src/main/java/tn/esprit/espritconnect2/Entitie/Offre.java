@@ -26,7 +26,7 @@ public class Offre {
     private Type typeOffre; // stage, emploi
     private String localisation;
     @Enumerated(EnumType.STRING)
-    private StatutOffre statutOffre;
+    private Status statutOffre;
     private Date datePublication;
 
     @ManyToOne
