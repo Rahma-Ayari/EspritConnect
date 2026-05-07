@@ -2,11 +2,15 @@ package tn.esprit.espritconnect2.Service;
 
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import tn.esprit.espritconnect2.DTO.EtudiantRequestDTO;
 import tn.esprit.espritconnect2.DTO.EtudiantResponseDTO;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
+import tn.esprit.espritconnect2.Entitie.Role;
+import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Repository.EtudiantRepository;
+import tn.esprit.espritconnect2.Repository.UserRepository;
 
 import java.util.Date;
 import java.util.List;
@@ -18,13 +22,15 @@ import java.util.stream.Collectors;
 public class EtudiantServiceImpl {
 
     private final EtudiantRepository etudiantRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     // ─── Mapper DTO → Entité ──────────────────────────────────────────────────
     private Etudiant toEntity(EtudiantRequestDTO dto) {
         Etudiant e = new Etudiant();
         e.setNom(dto.getNom());
         e.setEmail(dto.getEmail());
-        e.setPassword(dto.getPassword());
+        e.setPassword(passwordEncoder.encode(dto.getPassword()));
         e.setNiveau(dto.getNiveau());
         e.setFiliere(dto.getFiliere());
         e.setScoreReadiness(dto.getScoreReadiness());
@@ -50,10 +56,21 @@ public class EtudiantServiceImpl {
         if (etudiantRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Un étudiant avec cet email existe déjà : " + dto.getEmail());
         }
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new RuntimeException("Un compte avec cet email existe déjà : " + dto.getEmail());
+        }
 
         Etudiant etudiant = toEntity(dto);
         etudiant.setDateInscription(new Date()); // Date auto à la création
         Etudiant saved = etudiantRepository.save(etudiant);
+
+        userRepository.save(User.builder()
+                .nom(saved.getNom())
+                .email(saved.getEmail())
+                .password(saved.getPassword())
+                .role(Role.ETUDIANT)
+                .build());
+
         return toDTO(saved);
     }
 
