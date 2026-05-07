@@ -5,8 +5,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
-import tn.esprit.espritconnect2.DTO.Auth;
-import tn.esprit.espritconnect2.Service.AuthService;
+import tn.esprit.espritconnect2.DTO.AuthResponse;
+import tn.esprit.espritconnect2.DTO.LoginRequest;
+import tn.esprit.espritconnect2.DTO.RegisterRequest;
+import tn.esprit.espritconnect2.Service.AuthServiceImpl;
 
 import java.util.Map;
 
@@ -15,12 +17,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+    private final AuthServiceImpl authService;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody Auth.LoginRequest req) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
         try {
-            Auth.AuthResponse response = authService.login(req);
+            AuthResponse response = authService.login(req);
             return ResponseEntity.ok(response);
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(401)
@@ -32,9 +34,9 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody Auth.RegisterRequest req) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
         try {
-            Auth.AuthResponse response = authService.register(req);
+            AuthResponse response = authService.register(req);
             return ResponseEntity.status(201).body(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()

@@ -9,7 +9,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tn.esprit.espritconnect2.DTO.Auth;
+import tn.esprit.espritconnect2.DTO.AuthResponse;
+import tn.esprit.espritconnect2.DTO.LoginRequest;
+import tn.esprit.espritconnect2.DTO.RegisterRequest;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
 import tn.esprit.espritconnect2.Entitie.Role;
 import tn.esprit.espritconnect2.Entitie.User;
@@ -21,7 +23,7 @@ import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class AuthServiceImpl implements IAuthService {
 
     private final UserRepository userRepository;
     private final EtudiantRepository etudiantRepository;
@@ -29,7 +31,8 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final AuthenticationManager authenticationManager;
 
-    public Auth.AuthResponse login(Auth.LoginRequest req) {
+    @Override
+    public AuthResponse login(LoginRequest req) {
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
@@ -44,7 +47,7 @@ public class AuthService {
                         .orElse(0);
             }
 
-            return Auth.AuthResponse.builder()
+            return AuthResponse.builder()
                     .token(token)
                     .type("Bearer")
                     .role(user.getRole().name())
@@ -61,8 +64,9 @@ public class AuthService {
         }
     }
 
+    @Override
     @Transactional
-    public Auth.AuthResponse register(Auth.RegisterRequest req) {
+    public AuthResponse register(RegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail())
                 || etudiantRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("Un compte avec cet email existe déjà.");
@@ -91,7 +95,7 @@ public class AuthService {
 
         String token = jwtUtils.generateToken(user);
 
-        return Auth.AuthResponse.builder()
+        return AuthResponse.builder()
                 .token(token)
                 .type("Bearer")
                 .role(Role.ETUDIANT.name())
