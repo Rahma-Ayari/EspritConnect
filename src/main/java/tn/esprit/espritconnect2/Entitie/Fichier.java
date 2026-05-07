@@ -17,6 +17,7 @@ public class Fichier {
     private String userId;
     private String nom;
     private String url;
+    @Enumerated(EnumType.STRING)
     private Type typeFichier;   // "CV" ou "PORTFOLIO"
     private Long taille;
 
