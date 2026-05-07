@@ -3,6 +3,9 @@ package tn.esprit.espritconnect2.Entitie;
 
 import jakarta.persistence.*;
 import lombok.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 @Entity
@@ -15,9 +18,17 @@ public class Entreprise {
     @Column(name = "id_entreprise")
     private Long idEntreprise;
 
+    @NotBlank(message = "Le nom est obligatoire")
     private String nom;
+
+    @Email(message = "Email non valide")
+    @NotBlank(message = "L'email est obligatoire")
     private String email;
+
+    @NotBlank(message = "Le mot de passe est obligatoire")
+    @Size(min = 6, message = "Le mot de passe doit contenir au moins 6 caractères")
     private String password;
+
     private String secteur;
     private String siteWeb;
     private Boolean valide;
@@ -27,9 +38,9 @@ public class Entreprise {
     @JoinColumn(name = "profil_id")
     private Profil profil;
 
-    @OneToMany(mappedBy = "entreprise")
+    @OneToMany(mappedBy = "entreprise", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Offre> offres;
 
-    @OneToMany(mappedBy = "entreprise")
+    @OneToMany(mappedBy = "entreprise", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Evenement> evenements;
 }
