@@ -1,6 +1,7 @@
 package tn.esprit.espritconnect2.Entitie;
 //à vérifier si on va le renommer en CV
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,11 +22,14 @@ public class Fichier {
     private Long taille;
 
     @ManyToOne
+    @JsonIgnore
     private Etudiant etudiant;
 
     @OneToOne
+    @JsonIgnore
     private Candidature candidature;
 
     @OneToOne
+    @JsonIgnore
     private Alumni alumni;
 }

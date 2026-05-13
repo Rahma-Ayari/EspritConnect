@@ -1,6 +1,7 @@
 package tn.esprit.espritconnect2.Entitie;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import jakarta.validation.constraints.Email;
@@ -34,13 +35,16 @@ public class Entreprise {
     private Boolean valide;
     private String description;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "profil_id")
+    @JsonIgnore
     private Profil profil;
 
     @OneToMany(mappedBy = "entreprise", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Offre> offres;
 
     @OneToMany(mappedBy = "entreprise", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Evenement> evenements;
 }
