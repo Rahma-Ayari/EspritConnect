@@ -80,6 +80,7 @@ public class AuthServiceImpl implements IAuthService {
                 .password(encodedPassword)
                 .role(Role.ETUDIANT)
                 .enabled(false) // En attente de validation admin
+                .inscriptionRefusee(false)
                 .build();
         userRepository.save(user);
 

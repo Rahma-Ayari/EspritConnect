@@ -73,6 +73,8 @@ public class AlumniServiceImpl implements IAlumniService {
                 .email(saved.getEmail())
                 .password(saved.getPassword())
                 .role(Role.ALUMNI)
+                .enabled(false)
+                .inscriptionRefusee(false)
                 .build());
 
         return toDTO(saved);

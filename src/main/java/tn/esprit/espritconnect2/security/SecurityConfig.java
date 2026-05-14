@@ -45,7 +45,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/offres/public/**").permitAll()
                 .requestMatchers("/api/evenements/upcoming").permitAll()
+                .requestMatchers("/api/admin/dashboard/**").permitAll()
+                .requestMatchers("/api/admin/settings/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/registration/settings").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // Public self-registration: create company without JWT (pending admin approval).
+                .requestMatchers(HttpMethod.POST, "/api/entreprises").permitAll()
                 .requestMatchers("/api/entreprises/**").hasAnyRole("ENTREPRISE", "ADMIN")
                 .anyRequest().authenticated()
             )

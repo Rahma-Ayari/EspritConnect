@@ -48,6 +48,11 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean enabled = false; // Désactivé par défaut
 
+    /** Compte refusé par l'admin : ne plus afficher dans les pending ni permettre l'approbation. */
+    @Column(name = "inscription_refusee", nullable = false)
+    @Builder.Default
+    private boolean inscriptionRefusee = false;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

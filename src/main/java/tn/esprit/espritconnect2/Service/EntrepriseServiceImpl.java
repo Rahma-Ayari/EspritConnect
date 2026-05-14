@@ -25,6 +25,7 @@ public class EntrepriseServiceImpl implements IEntrepriseService {
         e.setSiteWeb(dto.getSiteWeb());
         e.setDescription(dto.getDescription());
         e.setValide(false); // Par défaut non valide
+        e.setInscriptionRefusee(false);
         return e;
     }
 

@@ -69,6 +69,8 @@ public class EtudiantServiceImpl {
                 .email(saved.getEmail())
                 .password(saved.getPassword())
                 .role(Role.ETUDIANT)
+                .enabled(false)
+                .inscriptionRefusee(false)
                 .build());
 
         return toDTO(saved);
