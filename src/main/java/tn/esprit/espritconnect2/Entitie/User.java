@@ -48,6 +48,11 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean enabled = false; // Désactivé par défaut
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    @Builder.Default
+    private Status status = Status.EN_ATTENTE;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

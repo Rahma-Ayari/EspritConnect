@@ -8,6 +8,7 @@ import tn.esprit.espritconnect2.DTO.UserApprovalStatsDTO;
 import tn.esprit.espritconnect2.Entitie.Alumni;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
 import tn.esprit.espritconnect2.Entitie.Role;
+import tn.esprit.espritconnect2.Entitie.Status;
 import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Exception.NotFoundException;
 import tn.esprit.espritconnect2.Repository.AlumniRepository;
@@ -26,6 +27,7 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     private final EtudiantRepository etudiantRepository;
     private final AlumniRepository alumniRepository;
     private final IEmailService emailService;
+    private final ApprovalSettingsService approvalSettingsService;
 
     private static final String[] AVATAR_COLORS = {
         "#E53935", "#D81B60", "#8E24AA", "#5E35B1", "#3949AB",
@@ -36,18 +38,12 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
 
     @Override
     public List<UserApprovalDTO> getPendingUsers() {
-        return userRepository.findByEnabledFalse()
-                .stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+        return processPendingUsers(userRepository.findByEnabledFalse());
     }
 
     @Override
     public List<UserApprovalDTO> getPendingUsersByRole(Role role) {
-        return userRepository.findByRoleAndEnabledFalse(role)
-                .stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+        return processPendingUsers(userRepository.findByRoleAndEnabledFalse(role));
     }
 
     @Override
@@ -66,6 +62,30 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
                 users = userRepository.searchPendingUsersByRole(search.trim(), role);
             }
         }
+        return processPendingUsers(users);
+    }
+
+    /**
+     * Vérifie et applique l'auto-approbation pour une liste d'utilisateurs en attente.
+     * Utile pour synchroniser les changements faits directement en base de données.
+     */
+    private List<UserApprovalDTO> processPendingUsers(List<User> users) {
+        if (users.isEmpty()) return Collections.emptyList();
+
+        List<User> toAutoApprove = users.stream()
+                .filter(u -> !u.isEnabled() && approvalSettingsService.shouldAutoApprove(u.getEmail()))
+                .collect(Collectors.toList());
+
+        if (!toAutoApprove.isEmpty()) {
+            toAutoApprove.forEach(u -> {
+                u.setEnabled(true);
+                u.setStatus(Status.ACCEPTEE);
+                emailService.sendApprovalNotification(u);
+            });
+            userRepository.saveAll(toAutoApprove);
+            users.removeAll(toAutoApprove);
+        }
+
         return users.stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -77,6 +97,7 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
                 .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
         
         user.setEnabled(true);
+        user.setStatus(Status.ACCEPTEE);
         User savedUser = userRepository.save(user);
         
         emailService.sendApprovalNotification(savedUser);
@@ -108,7 +129,10 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     public List<UserApprovalDTO> bulkApprove(List<UUID> userIds) {
         List<User> users = userRepository.findByIdIn(userIds);
         
-        users.forEach(user -> user.setEnabled(true));
+        users.forEach(user -> {
+            user.setEnabled(true);
+            user.setStatus(Status.ACCEPTEE);
+        });
         List<User> savedUsers = userRepository.saveAll(users);
         
         savedUsers.forEach(emailService::sendApprovalNotification);
@@ -167,7 +191,7 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
                 .role(user.getRole())
                 .affiliation(affiliation)
                 .registrationDate(user.getCreatedAt())
-                .status(user.isEnabled() ? "Approved" : "Pending")
+                .status(user.getStatus() != null ? user.getStatus().name() : "EN_ATTENTE")
                 .avatarInitials(initials)
                 .avatarColor(color)
                 .build();

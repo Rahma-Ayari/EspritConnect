@@ -16,6 +16,7 @@ import tn.esprit.espritconnect2.DTO.RegisterRequest;
 import tn.esprit.espritconnect2.Entitie.Alumni;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
 import tn.esprit.espritconnect2.Entitie.Role;
+import tn.esprit.espritconnect2.Entitie.Status;
 import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Repository.AlumniRepository;
 import tn.esprit.espritconnect2.Repository.EtudiantRepository;
@@ -89,22 +90,22 @@ public class AuthServiceImpl implements IAuthService {
 
         String encodedPassword = passwordEncoder.encode(req.getPassword());
 
-        boolean autoApproved = approvalSettingsService.shouldAutoApprove(req.getEmail());
+        boolean shouldBeAutoApproved = approvalSettingsService.shouldAutoApprove(req.getEmail());
         
-        if (autoApproved) {
-            log.info("Auto-approving user with email: {} (matches @esprit.tn domain)", req.getEmail());
-        }
-
         User user = User.builder()
                 .nom(req.getNom())
                 .email(req.getEmail())
                 .password(encodedPassword)
                 .role(role)
-                .enabled(autoApproved)
+                .enabled(false) // Toujours false à la création pour la base de données
+                .status(Status.EN_ATTENTE) // On force aussi la colonne physique 'status' à EN_ATTENTE
                 .build();
+        
+        log.info("Création de l'utilisateur {} - statut DB forcé à PENDING", user.getEmail());
         userRepository.save(user);
 
-        if (!autoApproved) {
+        if (!shouldBeAutoApproved) {
+            log.info("Notification admin envoyée pour l'utilisateur pending: {}", user.getEmail());
             emailService.sendNewRegistrationNotification(user);
         }
 
