@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import tn.esprit.espritconnect2.Entitie.Niveau;
+import tn.esprit.espritconnect2.Entitie.Role;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class RegisterRequest {
@@ -23,12 +24,18 @@ public class RegisterRequest {
     @Size(min = 6, message = "Minimum 6 caractères")
     private String password;
 
-    @NotNull(message = "Le niveau est requis")
+    @NotNull(message = "Le type d'utilisateur est requis")
+    private Role role;
+
     private Niveau niveau;
 
-    @NotBlank(message = "La filière est requise")
     private String filiere;
 
     private String diplome;
     private String photo;
+    
+    private Integer anneePromotion;
+    private String domaine;
+    private Boolean disponibleMentorat;
+    private String entrepriseActuelle;
 }
