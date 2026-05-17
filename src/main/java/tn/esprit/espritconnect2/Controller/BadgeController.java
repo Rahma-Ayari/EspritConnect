@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import tn.esprit.espritconnect2.DTO.BadgeDTO;
 import tn.esprit.espritconnect2.DTO.BadgeReqDTO;
 import tn.esprit.espritconnect2.DTO.UserBadgeDTO;
+import tn.esprit.espritconnect2.DTO.BadgeRequestDTO;
+import tn.esprit.espritconnect2.DTO.BadgeRequestReqDTO;
 import tn.esprit.espritconnect2.Service.IBadgeService;
 
 import java.util.List;
@@ -65,5 +67,21 @@ public class BadgeController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<UserBadgeDTO>> getUserBadges(@PathVariable UUID userId) {
         return ResponseEntity.ok(badgeService.getUserBadges(userId));
+    }
+
+    @PostMapping("/request")
+    public ResponseEntity<BadgeRequestDTO> requestBadge(@Valid @RequestBody BadgeRequestReqDTO req) {
+        return new ResponseEntity<>(badgeService.requestBadge(req), HttpStatus.CREATED);
+    }
+
+    @GetMapping("/requests")
+    public ResponseEntity<List<BadgeRequestDTO>> getAllRequests() {
+        return ResponseEntity.ok(badgeService.getAllRequests());
+    }
+
+    @PatchMapping("/requests/{requestId}/handle")
+    public ResponseEntity<Void> handleRequest(@PathVariable Long requestId, @RequestParam boolean approved) {
+        badgeService.handleRequest(requestId, approved);
+        return ResponseEntity.noContent().build();
     }
 }
