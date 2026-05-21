@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
 
 import java.util.Optional;
+import java.util.Date;
+import java.util.List;
 
 public interface EtudiantRepository extends JpaRepository<Etudiant,Long> {
     // Vérifier si un email existe déjà (utile pour la validation)
@@ -11,4 +13,6 @@ public interface EtudiantRepository extends JpaRepository<Etudiant,Long> {
 
     // Trouver par email (utile pour Spring Security plus tard)
     Optional<Etudiant> findByEmail(String email);
+
+    List<Etudiant> findTop10ByDateInscriptionAfterOrderByDateInscriptionDesc(Date after);
 }
