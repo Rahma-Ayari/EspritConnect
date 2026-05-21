@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import tn.esprit.espritconnect2.Entitie.Role;
 import tn.esprit.espritconnect2.Entitie.User;
+import tn.esprit.espritconnect2.Entitie.VerificationStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -47,4 +48,24 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // Bulk operations
     @Query("SELECT u FROM User u WHERE u.id IN :ids")
     List<User> findByIdIn(@Param("ids") List<UUID> ids);
+
+    // Enterprise verification queries
+    List<User> findByRoleAndVerificationStatus(Role role, VerificationStatus verificationStatus);
+    
+    long countByRoleAndVerificationStatus(Role role, VerificationStatus verificationStatus);
+
+    @Query("SELECT u FROM User u WHERE u.role = :role AND " +
+           "(LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.businessRegistrationNumber) LIKE LOWER(CONCAT('%', :search, '%')))")
+    List<User> searchEnterprisesByText(@Param("role") Role role, @Param("search") String search);
+
+    @Query("SELECT u FROM User u WHERE u.role = :role AND u.verificationStatus = :status AND " +
+           "(LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.businessRegistrationNumber) LIKE LOWER(CONCAT('%', :search, '%')))")
+    List<User> searchEnterprisesByTextAndStatus(
+            @Param("role") Role role, 
+            @Param("search") String search, 
+            @Param("status") VerificationStatus status);
 }

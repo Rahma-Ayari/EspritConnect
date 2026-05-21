@@ -46,16 +46,52 @@ public class User implements UserDetails {
 
     @Column(name = "enabled")
     @Builder.Default
-    private boolean enabled = false; // Désactivé par défaut
+    private boolean enabled = false;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
     private Status status = Status.EN_ATTENTE;
 
+    // Champs de vérification entreprise
+    @Column(name = "verification_document_path")
+    private String verificationDocumentPath;
+
+    @Column(name = "verification_document_name")
+    private String verificationDocumentName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status")
+    @Builder.Default
+    private VerificationStatus verificationStatus = VerificationStatus.NOT_SUBMITTED;
+
+    @Column(name = "business_registration_number")
+    private String businessRegistrationNumber;
+
+    @Column(name = "company_sector")
+    private String companySector;
+
+    @Column(name = "company_website")
+    private String companyWebsite;
+
+    @Column(name = "company_description", length = 1000)
+    private String companyDescription;
+
+    @Column(name = "verification_notes", length = 500)
+    private String verificationNotes;
+
+    @Column(name = "verified_at")
+    private LocalDateTime verifiedAt;
+
+    @Column(name = "verified_by")
+    private String verifiedBy;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (verificationStatus == null) {
+            verificationStatus = VerificationStatus.NOT_SUBMITTED;
+        }
     }
 
     @Override
