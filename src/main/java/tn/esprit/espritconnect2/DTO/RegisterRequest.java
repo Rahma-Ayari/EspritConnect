@@ -34,8 +34,16 @@ public class RegisterRequest {
     private String diplome;
     private String photo;
     
+    // Champs Alumni
     private Integer anneePromotion;
     private String domaine;
     private Boolean disponibleMentorat;
     private String entrepriseActuelle;
+    
+    // Champs Entreprise (noms utilisés par le frontend)
+    private String registreCommerce;
+    private String secteurActivite;
+    private String siteWeb;
+    private String descriptionEntreprise;
+    private String documentJustificatif;
 }
