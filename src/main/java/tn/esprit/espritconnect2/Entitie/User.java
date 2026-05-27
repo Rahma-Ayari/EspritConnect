@@ -48,6 +48,11 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean enabled = false; // Désactivé par défaut
 
+    /** Refusé par l'admin : retiré de la file d'approbation. */
+    @Column(name = "inscription_refusee", nullable = false)
+    @Builder.Default
+    private boolean inscriptionRefusee = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default

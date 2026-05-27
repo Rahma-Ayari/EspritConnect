@@ -35,6 +35,13 @@ public class Offre {
 
     private String localisation;
 
+    private String domaine;
+
+    @ElementCollection
+    @CollectionTable(name = "offre_competences", joinColumns = @JoinColumn(name = "offre_id"))
+    @Column(name = "competence")
+    private List<String> competencesRequises = new java.util.ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     private Status statutOfrre;
 

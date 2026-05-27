@@ -5,8 +5,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import tn.esprit.espritconnect2.DTO.EntrepriseRequestDTO;
-import tn.esprit.espritconnect2.DTO.EntrepriseResponseDTO;
+import tn.esprit.espritconnect2.DTO.*;
+import tn.esprit.espritconnect2.Service.EntrepriseJobDashboardService;
+import tn.esprit.espritconnect2.Service.EntrepriseVerificationService;
 import tn.esprit.espritconnect2.Service.IEntrepriseService;
 
 import java.util.List;
@@ -17,6 +18,8 @@ import java.util.List;
 public class EntrepriseController {
 
     private final IEntrepriseService entrepriseService;
+    private final EntrepriseVerificationService verificationService;
+    private final EntrepriseJobDashboardService jobDashboardService;
 
     @PostMapping
     public ResponseEntity<EntrepriseResponseDTO> create(@Valid @RequestBody EntrepriseRequestDTO dto) {
@@ -42,5 +45,27 @@ public class EntrepriseController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         entrepriseService.deleteEntreprise(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/job-dashboard")
+    public ResponseEntity<EntrepriseJobDashboardDTO> jobDashboard(@PathVariable Long id) {
+        return ResponseEntity.ok(jobDashboardService.getOverview(id));
+    }
+
+    @GetMapping("/{id}/verification")
+    public ResponseEntity<EntrepriseVerificationDTO> verificationStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(verificationService.getStatus(id));
+    }
+
+    @PostMapping("/{id}/verification/documents")
+    public ResponseEntity<EntrepriseDocumentDTO> uploadDocument(
+            @PathVariable Long id,
+            @Valid @RequestBody EntrepriseDocumentRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(verificationService.addDocument(id, dto));
+    }
+
+    @PostMapping("/{id}/verification/submit")
+    public ResponseEntity<EntrepriseVerificationDTO> submitVerification(@PathVariable Long id) {
+        return ResponseEntity.ok(verificationService.submitForReview(id));
     }
 }

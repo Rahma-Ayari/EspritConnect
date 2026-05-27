@@ -35,6 +35,13 @@ public class Entreprise {
     private Boolean valide;
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status")
+    private VerificationStatus verificationStatus = VerificationStatus.DOCUMENTS_REQUIRED;
+
+    @Column(name = "verification_notes", length = 2000)
+    private String verificationNotes;
+
     /** Inscription refusée par l'admin : retirée de la file d'attente. */
     @Column(name = "inscription_refusee", nullable = false)
     private boolean inscriptionRefusee = false;

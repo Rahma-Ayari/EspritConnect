@@ -136,6 +136,7 @@ public class AdminDashboardService {
         Entreprise entreprise = entrepriseRepository.findById(companyId)
                 .orElseThrow(() -> new RuntimeException("Entreprise introuvable"));
         entreprise.setValide(true);
+        entreprise.setVerificationStatus(tn.esprit.espritconnect2.Entitie.VerificationStatus.VERIFIED);
         entreprise.setInscriptionRefusee(false);
         entrepriseRepository.save(entreprise);
     }

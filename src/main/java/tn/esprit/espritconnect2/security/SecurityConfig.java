@@ -48,6 +48,13 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/dashboard/**").permitAll()
                 .requestMatchers("/api/admin/settings/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/registration/settings").permitAll()
+                // DEV: open job APIs while building entreprise job dashboard (tighten before prod)
+                .requestMatchers("/api/offres/**").permitAll()
+                .requestMatchers("/api/matchings/**").permitAll()
+                .requestMatchers("/api/candidatures/**").permitAll()
+                .requestMatchers("/api/entreprises/*/job-dashboard").permitAll()
+                .requestMatchers("/api/entreprises/*/verification/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/entreprises/*").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // Public self-registration: create company without JWT (pending admin approval).
                 .requestMatchers(HttpMethod.POST, "/api/entreprises").permitAll()
