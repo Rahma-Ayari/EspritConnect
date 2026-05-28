@@ -5,12 +5,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.espritconnect2.DTO.ApprovalSettingsDTO;
+import tn.esprit.espritconnect2.DTO.BulkAddUsersRequest;
+import tn.esprit.espritconnect2.DTO.BulkAddUsersResponse;
 import tn.esprit.espritconnect2.DTO.BulkApprovalRequest;
+import tn.esprit.espritconnect2.DTO.NewUserRequest;
+import tn.esprit.espritconnect2.DTO.SmartMailingSettingsDTO;
 import tn.esprit.espritconnect2.DTO.UserApprovalDTO;
 import tn.esprit.espritconnect2.DTO.UserApprovalStatsDTO;
 import tn.esprit.espritconnect2.Entitie.Role;
 import tn.esprit.espritconnect2.Service.ApprovalSettingsService;
 import tn.esprit.espritconnect2.Service.IUserApprovalService;
+import tn.esprit.espritconnect2.Service.SmartMailingService;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +30,7 @@ public class UserApprovalController {
 
     private final IUserApprovalService userApprovalService;
     private final ApprovalSettingsService approvalSettingsService;
+    private final SmartMailingService smartMailingService;
 
     @GetMapping("/pending")
     public ResponseEntity<List<UserApprovalDTO>> getPendingUsers(
@@ -104,5 +110,42 @@ public class UserApprovalController {
     public ResponseEntity<ApprovalSettingsDTO> resetSettings() {
         approvalSettingsService.resetToDefaults();
         return ResponseEntity.ok(approvalSettingsService.getSettings());
+    }
+
+    @PostMapping("/add")
+    public ResponseEntity<UserApprovalDTO> addUser(@RequestBody NewUserRequest request) {
+        UserApprovalDTO user = userApprovalService.addUser(request);
+        return ResponseEntity.ok(user);
+    }
+
+    @PostMapping("/bulk-add")
+    public ResponseEntity<BulkAddUsersResponse> bulkAddUsers(@RequestBody BulkAddUsersRequest request) {
+        BulkAddUsersResponse response = userApprovalService.bulkAddUsers(request.getUsers());
+        return ResponseEntity.ok(response);
+    }
+
+    // ==================== Smart Mailing Endpoints ====================
+
+    @GetMapping("/smart-mailing/settings")
+    public ResponseEntity<SmartMailingSettingsDTO> getSmartMailingSettings() {
+        return ResponseEntity.ok(smartMailingService.getSettings());
+    }
+
+    @PutMapping("/smart-mailing/settings")
+    public ResponseEntity<SmartMailingSettingsDTO> updateSmartMailingSettings(@RequestBody SmartMailingSettingsDTO settings) {
+        SmartMailingSettingsDTO updated = smartMailingService.updateSettings(settings);
+        return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/smart-mailing/pending-count")
+    public ResponseEntity<Map<String, Long>> getPendingNotificationsCount() {
+        long count = smartMailingService.getPendingNotificationsCount();
+        return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    @PostMapping("/smart-mailing/process-now")
+    public ResponseEntity<Map<String, String>> processNotificationsNow() {
+        smartMailingService.processBatchNotifications();
+        return ResponseEntity.ok(Map.of("message", "Notifications processed successfully"));
     }
 }

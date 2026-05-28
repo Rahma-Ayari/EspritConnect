@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import tn.esprit.espritconnect2.Entitie.Role;
+import tn.esprit.espritconnect2.Entitie.Status;
 import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Entitie.VerificationStatus;
 
@@ -22,6 +23,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Page<User> findByEnabledFalse(Pageable pageable);
     long countByEnabledFalse();
 
+    // Pending users by status EN_ATTENTE (correct filtering)
+    List<User> findByStatus(Status status);
+    List<User> findByStatusAndRoleNot(Status status, Role role);
+    long countByStatus(Status status);
+    long countByStatusAndRoleNot(Status status, Role role);
+
     // Approved users (enabled = true)
     List<User> findByEnabledTrue();
     long countByEnabledTrue();
@@ -29,16 +36,30 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // By role
     List<User> findByRole(Role role);
     List<User> findByRoleAndEnabledFalse(Role role);
+    List<User> findByRoleAndStatus(Role role, Status status);
     long countByRole(Role role);
     long countByRoleAndEnabledFalse(Role role);
 
-    // Search pending users by name or email
+    // Search pending users by name or email (with status check)
+    @Query("SELECT u FROM User u WHERE u.status = :status AND u.role <> 'ADMIN' AND " +
+           "(LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')))")
+    List<User> searchPendingUsersByStatus(@Param("search") String search, @Param("status") Status status);
+
+    // Search pending users by name or email (old method kept for compatibility)
     @Query("SELECT u FROM User u WHERE u.enabled = false AND " +
            "(LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')))")
     List<User> searchPendingUsers(@Param("search") String search);
 
-    // Search pending users by name, email, or role
+    // Search pending users by name, email, role and status
+    @Query("SELECT u FROM User u WHERE u.status = :status AND " +
+           "(LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+           "(:role IS NULL OR u.role = :role)")
+    List<User> searchPendingUsersByRoleAndStatus(@Param("search") String search, @Param("role") Role role, @Param("status") Status status);
+
+    // Search pending users by name, email, or role (old method kept for compatibility)
     @Query("SELECT u FROM User u WHERE u.enabled = false AND " +
            "(LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +

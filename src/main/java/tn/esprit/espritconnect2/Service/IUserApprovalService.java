@@ -1,5 +1,7 @@
 package tn.esprit.espritconnect2.Service;
 
+import tn.esprit.espritconnect2.DTO.BulkAddUsersResponse;
+import tn.esprit.espritconnect2.DTO.NewUserRequest;
 import tn.esprit.espritconnect2.DTO.UserApprovalDTO;
 import tn.esprit.espritconnect2.DTO.UserApprovalStatsDTO;
 import tn.esprit.espritconnect2.Entitie.Role;
@@ -30,4 +32,8 @@ public interface IUserApprovalService {
     List<UserApprovalDTO> getAllUsers();
     
     List<UserApprovalDTO> getApprovedUsers();
+    
+    UserApprovalDTO addUser(NewUserRequest request);
+    
+    BulkAddUsersResponse bulkAddUsers(List<NewUserRequest> users);
 }
