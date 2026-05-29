@@ -10,5 +10,6 @@ public class DigestConfigRequestDTO {
     private Boolean actif;
     private String templateHtml;
     private String frontendBaseUrl;
+    private Long mailingListId;
     private DigestSectionsDTO sections;
 }

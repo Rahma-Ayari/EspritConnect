@@ -47,4 +47,11 @@ public class EmailCampaignController {
         service.send(id);
         return ResponseEntity.ok().build();
     }
+
+    /** Envoi direct sans créer une campagne persistée */
+    @PostMapping("/send-now")
+    public ResponseEntity<Void> sendNow(@Valid @RequestBody EmailCampaignRequestDTO dto) {
+        service.sendNow(dto);
+        return ResponseEntity.ok().build();
+    }
 }

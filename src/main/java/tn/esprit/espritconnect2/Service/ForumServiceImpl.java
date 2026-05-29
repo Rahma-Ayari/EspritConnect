@@ -172,6 +172,15 @@ public class ForumServiceImpl implements ForumService {
 
     @Override
     @Transactional
+    public ForumReply updateReply(Long replyId, ForumReply replyDetails) {
+        ForumReply reply = replyRepository.findById(replyId)
+                .orElseThrow(() -> new IllegalArgumentException("Commentaire introuvable."));
+        reply.setContent(replyDetails.getContent());
+        return replyRepository.save(reply);
+    }
+
+    @Override
+    @Transactional
     public void deleteReply(Long replyId) {
         ForumReply reply = replyRepository.findById(replyId)
                 .orElseThrow(() -> new IllegalArgumentException("Commentaire introuvable."));

@@ -51,6 +51,9 @@ public class ForumPost {
 
     private int viewsCount;
 
+    @Builder.Default
+    private int likesCount = 0;
+
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     @JsonIgnoreProperties("post")

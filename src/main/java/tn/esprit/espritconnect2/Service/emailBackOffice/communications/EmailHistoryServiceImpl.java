@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.espritconnect2.DTO.emailBackOffice.communications.EmailHistoryResponseDTO;
 import tn.esprit.espritconnect2.Entitie.emailBackOffice.EmailHistory;
+import tn.esprit.espritconnect2.Entitie.emailBackOffice.enums.EmailDeliveryStatus;
 import tn.esprit.espritconnect2.Entitie.emailBackOffice.enums.EmailHistoryType;
 import tn.esprit.espritconnect2.Repository.emailBackOffice.EmailHistoryRepository;
 
@@ -20,7 +21,9 @@ public class EmailHistoryServiceImpl implements IEmailHistoryService {
     @Transactional(readOnly = true)
     public Page<EmailHistoryResponseDTO> search(String q, EmailHistoryType type, Pageable pageable) {
         Page<EmailHistory> page;
-        if (type != null) {
+        if (type != null && q != null && !q.isBlank()) {
+            page = repo.findByTypeAndToEmailContainingIgnoreCase(type, q, pageable);
+        } else if (type != null) {
             page = repo.findByType(type, pageable);
         } else if (q != null && !q.isBlank()) {
             page = repo.findByToEmailContainingIgnoreCase(q, pageable);
@@ -28,6 +31,21 @@ public class EmailHistoryServiceImpl implements IEmailHistoryService {
             page = repo.findAll(pageable);
         }
         return page.map(this::toDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countByStatus(String q, EmailHistoryType type, EmailDeliveryStatus status) {
+        if (type != null && q != null && !q.isBlank()) {
+            return repo.countByTypeAndToEmailContainingIgnoreCaseAndDeliveryStatus(type, q, status);
+        }
+        if (type != null) {
+            return repo.countByTypeAndDeliveryStatus(type, status);
+        }
+        if (q != null && !q.isBlank()) {
+            return repo.countByToEmailContainingIgnoreCaseAndDeliveryStatus(q, status);
+        }
+        return repo.countByDeliveryStatus(status);
     }
 
     private EmailHistoryResponseDTO toDto(EmailHistory h) {

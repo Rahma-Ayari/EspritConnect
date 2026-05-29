@@ -18,12 +18,11 @@ public class ActivityDigestComposerService {
     private final OffreRepository offreRepository;
     private final EvenementRepository evenementRepository;
     private final EtudiantRepository etudiantRepository;
-    private final PostRepository postRepository; // si tu l’ajoutes
+    private final PostRepository postRepository;
 
-    public String buildHtml(DigestConfig config, LocalDateTime windowStart, LocalDateTime windowEnd, String recipientName) {
+    public String buildHtml(DigestConfig config, LocalDateTime windowStart, LocalDateTime windowEnd, String recipientName, boolean isForEmail) {
 
         String baseUrl = config.getFrontendBaseUrl();
-
         Date afterDate = Date.from(windowStart.atZone(ZoneId.systemDefault()).toInstant());
 
         List<Offre> jobs = config.isLatestJobPosts()
@@ -46,26 +45,33 @@ public class ActivityDigestComposerService {
                 ? postRepository.findTop10ByCategoryAndCreatedAtAfterOrderByCreatedAtDesc("BUSINESS_DIRECTORY", windowStart)
                 : List.of();
 
-        String bannerHtml = (config.getBannerUrl() != null && !config.getBannerUrl().isBlank())
-                ? "<img src='" + config.getBannerUrl() + "' style='width:100%;max-height:182px;object-fit:cover;' alt='Banner'/>"
-                : "<div style='background:#cc0000;height:120px;display:flex;align-items:center;justify-content:center;'>"
-                + "<span style='color:#fff;font-size:22px;font-weight:700;font-family:Arial;'>EspritConnect</span></div>";
+        // Banner HTML: display the uploaded banner if it exists, otherwise display a beautiful fallback banner
+        String bannerHtml;
+        if (config.getBannerUrl() != null && !config.getBannerUrl().isBlank()) {
+            String src = isForEmail ? "cid:bannerImage" : config.getBannerUrl();
+            bannerHtml = "<div style=\"width:100%; text-align:center; background-color:#ffffff; border-bottom:1px solid #e5e7eb; padding:0; margin:0; line-height:0;\">"
+                    + "<img src=\"" + src + "\" width=\"600\" alt=\"Banner\" style=\"display:block; width:100%; max-width:600px; height:auto !important; border:none; margin:0 auto; outline:none; text-decoration:none;\" border=\"0\" />"
+                    + "</div>";
+        } else {
+            bannerHtml = "<div style='background:linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding:40px 24px; text-align:center; color:#ffffff;'>"
+                    + "<div style='font-size:32px; font-weight:800; letter-spacing:1px; margin:0; font-family:Arial, sans-serif;'>ESPRIT<span style='color:#ffd2d2;'>Connect</span></div>"
+                    + "<div style='font-size:14px; opacity:0.85; margin-top:6px; font-family:Arial, sans-serif;'>Se former autrement</div>"
+                    + "</div>";
+        }
 
-        // Template admin (builder)
+        // Custom template HTML added by admin
         String adminHtml = config.getTemplateHtml() == null ? "" : config.getTemplateHtml();
 
-        // Sections auto
+        // Automatically generated sections
         String autoSections = ""
                 + sectionJobs(baseUrl, jobs)
                 + sectionEvents(baseUrl, events)
                 + sectionMembers(members)
-                + sectionPosts(baseUrl, "Nouveaux posts", "/posts/", feedPosts)
-                + sectionPosts(baseUrl, "Business directory", "/business/", businessPosts)
-                + (config.isIncludePlatformContact()
-                ? contactFooter()
-                : "");
+                + sectionPosts(baseUrl, "Nouveaux posts sur le fil", "/posts/", feedPosts)
+                + sectionPosts(baseUrl, "Business Directory", "/business/", businessPosts)
+                + (config.isIncludePlatformContact() ? contactFooter() : "");
 
-        return """
+        String htmlTemplate = """
             <!DOCTYPE html>
             <html lang="fr">
             <head>
@@ -73,74 +79,91 @@ public class ActivityDigestComposerService {
               <meta name="viewport" content="width=device-width, initial-scale=1"/>
               <title>Activity Digest</title>
             </head>
-            <body style="margin:0;padding:0;background:#f5f5f5;">
-              <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.08);font-family:Arial;">
+            <body style="margin:0; padding:0; background-color:#f3f4f6; -webkit-font-smoothing:antialiased;">
+              <div style="width:100%; max-width:600px; margin:20px auto; background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.05); border:1px solid #e5e7eb; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                
+                <!-- En-tête / Bannière -->
                 %s
-                <div style="padding:22px 22px 10px;">
-                  <h2 style="margin:0;color:#1a1a2e;font-size:18px;">Bonjour %s,</h2>
-                  <p style="margin:8px 0 0;color:#6c757d;font-size:13px;line-height:1.5;">
-                    Résumé automatique des nouveautés entre <b>%s</b> et <b>%s</b>.
+                
+                <!-- Corps de l'email -->
+                <div style="padding:32px 32px 20px;">
+                  <h2 style="margin:0; color:#111827; font-size:20px; font-weight:700;">Bonjour %s,</h2>
+                  <p style="margin:10px 0 0; color:#4b5563; font-size:14px; line-height:1.6;">
+                    Voici votre récapitulatif des actualités et opportunités partagées sur <b>ESPRIT Connect</b> pour la période du <b>%s</b> au <b>%s</b>.
                   </p>
                 </div>
-                <div style="padding:0 22px 10px;">
+                
+                <!-- Contenu custom admin -->
+                <div style="padding:0 32px 10px; color:#374151; font-size:14px; line-height:1.6;">
                   %s
                 </div>
-                <div style="padding:0 22px 24px;">
+                
+                <!-- Sections générées -->
+                <div style="padding:0 32px 32px;">
                   %s
                 </div>
-                <div style="background:#111827;color:#9ca3af;padding:14px 18px;font-size:12px;text-align:center;">
-                  © EspritConnect — Email automatique
+                
+                <!-- Pied de page -->
+                <div style="background:linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color:#ffe4e6; padding:24px 24px; font-size:12px; text-align:center; font-family:Arial, sans-serif; border-top:1px solid #fecaca;">
+                  <div style="font-weight:600; color:#ffffff; margin-bottom:6px;">ESPRIT Connect</div>
+                  <div style="margin-bottom:12px; opacity:0.8;">Vous recevez cet email car vous êtes inscrit sur la plateforme ESPRIT Connect.</div>
+                  <div style="border-top:1px solid rgba(255,255,255,0.25); padding-top:12px; opacity:0.9;">
+                    © 2026 ESPRIT — Honoris United Universities. Tous droits réservés.
+                  </div>
                 </div>
+                
               </div>
             </body>
             </html>
-        """.formatted(
-                bannerHtml,
-                escape(recipientName),
-                windowStart.toLocalDate(),
-                windowEnd.toLocalDate(),
-                adminHtml,
-                autoSections
-        );
+        """;
+
+        return htmlTemplate
+                .replace("%s", "%%s")
+                .replaceFirst("%%s", java.util.regex.Matcher.quoteReplacement(bannerHtml))
+                .replaceFirst("%%s", java.util.regex.Matcher.quoteReplacement(escape(recipientName)))
+                .replaceFirst("%%s", java.util.regex.Matcher.quoteReplacement(windowStart.toLocalDate().toString()))
+                .replaceFirst("%%s", java.util.regex.Matcher.quoteReplacement(windowEnd.toLocalDate().toString()))
+                .replaceFirst("%%s", java.util.regex.Matcher.quoteReplacement(adminHtml))
+                .replaceFirst("%%s", java.util.regex.Matcher.quoteReplacement(autoSections));
     }
 
     private String sectionJobs(String baseUrl, List<Offre> jobs) {
         if (jobs.isEmpty()) return "";
         String items = jobs.stream().map(j ->
-                "<li style='margin:6px 0;color:#111827;font-size:13px;'>" +
-                        escape(j.getTitre()) +
-                        " — <a style='color:#cc0000;text-decoration:none;' href='" + baseUrl + "/jobs/" + j.getIdOffre() + "'>voir</a></li>"
+                "<li style='margin:8px 0; color:#374151; font-size:13.5px; line-height:1.4;'>" +
+                        "<strong style='color:#111827;'>" + escape(j.getTitre()) + "</strong>" +
+                        " — <a style='color:#dc2626; text-decoration:none; font-weight:500;' href='" + baseUrl + "/jobs/" + j.getIdOffre() + "'>Consulter l'offre →</a></li>"
         ).reduce("", (a,b) -> a+b);
 
-        return block("Latest job posts", items, baseUrl + "/offres");
+        return block("Dernières opportunités (Emplois & Stages)", items, baseUrl + "/offres");
     }
 
     private String sectionEvents(String baseUrl, List<Evenement> events) {
         if (events.isEmpty()) return "";
         String items = events.stream().map(e ->
-                "<li style='margin:6px 0;color:#111827;font-size:13px;'>" +
-                        escape(e.getTitre()) +
-                        " — <a style='color:#cc0000;text-decoration:none;' href='" + baseUrl + "/events/" + e.getIdEvenement() + "'>voir</a></li>"
+                "<li style='margin:8px 0; color:#374151; font-size:13.5px; line-height:1.4;'>" +
+                        "<strong style='color:#111827;'>" + escape(e.getTitre()) + "</strong>" +
+                        " — <a style='color:#dc2626; text-decoration:none; font-weight:500;' href='" + baseUrl + "/events/" + e.getIdEvenement() + "'>Détails de l'événement →</a></li>"
         ).reduce("", (a,b) -> a+b);
 
-        return block("Latest Events", items, baseUrl + "/evenements");
+        return block("Événements à venir", items, baseUrl + "/evenements");
     }
 
     private String sectionMembers(List<Etudiant> members) {
         if (members.isEmpty()) return "";
         String items = members.stream().map(m ->
-                "<li style='margin:6px 0;color:#111827;font-size:13px;'>" + escape(m.getNom()) + "</li>"
+                "<li style='margin:6px 0; color:#374151; font-size:13.5px;'>" + escape(m.getNom()) + "</li>"
         ).reduce("", (a,b) -> a+b);
 
-        return block("Recently Joined Members", items, null);
+        return block("Nouveaux membres inscrits", items, null);
     }
 
     private String sectionPosts(String baseUrl, String title, String linkPrefix, List<Post> posts) {
         if (posts == null || posts.isEmpty()) return "";
         String items = posts.stream().map(p ->
-                "<li style='margin:6px 0;color:#111827;font-size:13px;'>" +
-                        escape(p.getTitle()) +
-                        " — <a style='color:#cc0000;text-decoration:none;' href='" + baseUrl + linkPrefix + p.getId() + "'>voir</a></li>"
+                "<li style='margin:8px 0; color:#374151; font-size:13.5px; line-height:1.4;'>" +
+                        "<strong style='color:#111827;'>" + escape(p.getTitle()) + "</strong>" +
+                        " — <a style='color:#dc2626; text-decoration:none; font-weight:500;' href='" + baseUrl + linkPrefix + p.getId() + "'>Lire la publication →</a></li>"
         ).reduce("", (a,b) -> a+b);
 
         return block(title, items, baseUrl + linkPrefix);
@@ -148,12 +171,14 @@ public class ActivityDigestComposerService {
 
     private String block(String title, String listItems, String ctaUrl) {
         String cta = (ctaUrl == null) ? "" :
-                "<a href='" + ctaUrl + "' style='display:inline-block;margin-top:10px;background:#cc0000;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700;'>Voir tout</a>";
+                "<div style='margin-top:14px; text-align:right;'>" +
+                "<a href='" + ctaUrl + "' style='display:inline-block; background-color:#dc2626; color:#ffffff; text-decoration:none; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:700; transition:background-color 0.2s;'>Voir tout sur la plateforme</a>" +
+                "</div>";
 
         return """
-            <div style="border:1px solid #e9ecef;border-radius:10px;padding:14px 14px;margin-top:14px;">
-              <div style="font-weight:800;color:#1a1a2e;font-size:14px;margin-bottom:8px;">%s</div>
-              <ul style="padding-left:18px;margin:0;">%s</ul>
+            <div style="border:1px solid #e5e7eb; border-radius:10px; padding:18px 20px; margin-top:20px; background-color:#f9fafb;">
+              <div style="font-weight:700; color:#111827; font-size:15px; margin-bottom:12px; border-left:3px solid #dc2626; padding-left:10px;">%s</div>
+              <ul style="padding-left:16px; margin:0; list-style-type:square; color:#9ca3af;">%s</ul>
               %s
             </div>
         """.formatted(escape(title), listItems, cta);
@@ -161,9 +186,10 @@ public class ActivityDigestComposerService {
 
     private String contactFooter() {
         return """
-            <div style="margin-top:16px;padding:12px;border-top:1px solid #e9ecef;color:#6c757d;font-size:12px;">
-              <div><b>Contact</b> : support@esprit.tn</div>
-              <div>Tunis, Esprit — Honoris United Universities</div>
+            <div style="margin-top:24px; padding:16px; border-top:1px dashed #e5e7eb; color:#6b7280; font-size:12.5px; line-height:1.5; background-color:#f9fafb; border-radius:8px;">
+              <div style="font-weight:700; color:#374151; margin-bottom:4px;">Coordonnées de contact :</div>
+              <div><b>Email</b> : support.connect@esprit.tn</div>
+              <div><b>Adresse</b> : Tunis, Esprit — Honoris United Universities</div>
             </div>
         """;
     }

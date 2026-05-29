@@ -29,6 +29,7 @@ public interface ForumService {
 
     // --- Replies ---
     ForumReply addReply(Long postId, ForumReply reply);
+    ForumReply updateReply(Long replyId, ForumReply reply);
     void deleteReply(Long replyId);
     ForumReply reportReply(Long replyId, String reason);
     ForumReply resolveReplyReport(Long replyId);

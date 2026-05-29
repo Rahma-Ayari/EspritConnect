@@ -51,6 +51,9 @@ public class DigestConfig {
     // --- Pour calculer la fenêtre des "nouveaux contenus" ---
     private LocalDateTime lastSentAt; // ← Quand le dernier email a été envoyé
 
+    // ID de la liste de diffusion sélectionnée pour l'envoi
+    private Long mailingListId;
+
     // URL publique de ton frontend (pour générer les liens)
     @Column(nullable = false)
     private String frontendBaseUrl;

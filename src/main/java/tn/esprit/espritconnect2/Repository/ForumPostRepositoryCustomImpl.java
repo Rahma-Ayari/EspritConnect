@@ -50,4 +50,41 @@ public class ForumPostRepositoryCustomImpl implements ForumPostRepositoryCustom 
 
         return query.getResultList();
     }
+
+    @Override
+    public List<ForumPost> filterPublicPosts(Long categoryId, Role authorRole, String search, String authorEmail) {
+        StringBuilder jpql = new StringBuilder("SELECT p FROM ForumPost p WHERE p.reported = false");
+
+        if (categoryId != null) {
+            jpql.append(" AND p.category.id = :categoryId");
+        }
+        if (authorRole != null) {
+            jpql.append(" AND p.authorRole = :authorRole");
+        }
+        if (search != null && !search.isBlank()) {
+            jpql.append(" AND (LOWER(p.title) LIKE :search OR LOWER(p.content) LIKE :search)");
+        }
+        if (authorEmail != null && !authorEmail.isBlank()) {
+            jpql.append(" AND LOWER(p.authorEmail) = LOWER(:authorEmail)");
+        }
+
+        jpql.append(" ORDER BY p.pinned DESC, p.createdAt DESC");
+
+        TypedQuery<ForumPost> query = entityManager.createQuery(jpql.toString(), ForumPost.class);
+
+        if (categoryId != null) {
+            query.setParameter("categoryId", categoryId);
+        }
+        if (authorRole != null) {
+            query.setParameter("authorRole", authorRole);
+        }
+        if (search != null && !search.isBlank()) {
+            query.setParameter("search", "%" + search.toLowerCase() + "%");
+        }
+        if (authorEmail != null && !authorEmail.isBlank()) {
+            query.setParameter("authorEmail", authorEmail.trim());
+        }
+
+        return query.getResultList();
+    }
 }

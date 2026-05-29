@@ -4,6 +4,8 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 import tn.esprit.espritconnect2.Entitie.emailBackOffice.enums.RecipientScope;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,4 +28,7 @@ public class EmailCampaignRequestDTO {
 
     /** Obligatoire si recipientScope = MAILING_LIST */
     private Long mailingListId;
+
+    /** Optionnel: sous-ensemble de destinataires (emails) d'une mailing list */
+    private List<@Email String> recipientEmails;
 }

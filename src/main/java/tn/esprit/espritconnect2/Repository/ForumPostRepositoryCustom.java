@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface ForumPostRepositoryCustom {
     List<ForumPost> filterPosts(Long categoryId, Role authorRole, Boolean reported, String search);
+
+    List<ForumPost> filterPublicPosts(Long categoryId, Role authorRole, String search, String authorEmail);
 }

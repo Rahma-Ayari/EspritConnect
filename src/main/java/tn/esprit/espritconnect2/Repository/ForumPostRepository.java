@@ -18,4 +18,10 @@ public interface ForumPostRepository extends JpaRepository<ForumPost, Long>, For
 
     @Query("SELECT COUNT(p) FROM ForumPost p WHERE p.authorRole = :role")
     long countByAuthorRole(@Param("role") Role role);
+
+    List<ForumPost> findByAuthorEmailIgnoreCaseAndReportedFalseOrderByCreatedAtDesc(String authorEmail);
+
+    List<ForumPost> findByReportedFalseOrderByPinnedDescCreatedAtDesc();
+
+    List<ForumPost> findByCategoryIdAndReportedFalseOrderByPinnedDescCreatedAtDesc(Long categoryId);
 }

@@ -12,5 +12,6 @@ public class DigestConfigResponseDTO {
     private String templateHtml;
     private String frontendBaseUrl;
     private String lastSentAt;
+    private Long mailingListId;
     private DigestSectionsDTO sections;
 }

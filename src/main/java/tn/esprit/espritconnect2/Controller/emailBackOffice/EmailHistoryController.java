@@ -7,8 +7,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.espritconnect2.DTO.emailBackOffice.communications.EmailHistoryResponseDTO;
+import tn.esprit.espritconnect2.Entitie.emailBackOffice.enums.EmailDeliveryStatus;
 import tn.esprit.espritconnect2.Entitie.emailBackOffice.enums.EmailHistoryType;
 import tn.esprit.espritconnect2.Service.emailBackOffice.communications.IEmailHistoryService;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/email-communications/history")
@@ -27,5 +30,20 @@ public class EmailHistoryController {
             @RequestParam(required = false) EmailHistoryType type
     ) {
         return ResponseEntity.ok(service.search(q, type, PageRequest.of(page, size)));
+    }
+
+    /** Stats globales (succès/échecs) selon les mêmes filtres que la page */
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Long>> stats(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) EmailHistoryType type
+    ) {
+        long success = service.countByStatus(q, type, EmailDeliveryStatus.SUCCESS);
+        long failed = service.countByStatus(q, type, EmailDeliveryStatus.FAILED);
+        return ResponseEntity.ok(Map.of(
+                "success", success,
+                "failed", failed,
+                "total", success + failed
+        ));
     }
 }

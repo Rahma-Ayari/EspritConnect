@@ -52,6 +52,9 @@ public class DigestConfigServiceImpl { // ← Gestion de la configuration
         // Pour actif : si le DTO ne précise pas → on garde l'ancienne valeur
         c.setActif(dto.getActif() != null ? dto.getActif() : c.getActif());
 
+        // Liste de diffusion cible
+        c.setMailingListId(dto.getMailingListId());
+
         // Template HTML : seulement si l'admin en envoie un
         if (dto.getTemplateHtml() != null) c.setTemplateHtml(dto.getTemplateHtml());
 
@@ -90,6 +93,7 @@ public class DigestConfigServiceImpl { // ← Gestion de la configuration
         c.setLatestJobPosts(true);
         c.setIncludePlatformContact(true);
         c.setFrontendBaseUrl("http://localhost:4200");
+        c.setMailingListId(null);
 
         return toDTO(repo.save(c));
     }
@@ -99,6 +103,7 @@ public class DigestConfigServiceImpl { // ← Gestion de la configuration
         c.setSujet("");
         c.setBannerUrl("");
         c.setTemplateHtml("");
+        c.setMailingListId(null);
         return toDTO(repo.save(c));
     }
 
@@ -122,6 +127,7 @@ public class DigestConfigServiceImpl { // ← Gestion de la configuration
                 .sections(sections)
                 .frontendBaseUrl(c.getFrontendBaseUrl())
                 .lastSentAt(c.getLastSentAt() != null ? c.getLastSentAt().toString() : null)
+                .mailingListId(c.getMailingListId())
                 .build();
     }
 

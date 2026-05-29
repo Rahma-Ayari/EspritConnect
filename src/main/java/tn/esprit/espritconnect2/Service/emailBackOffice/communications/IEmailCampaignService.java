@@ -11,4 +11,5 @@ public interface IEmailCampaignService {
     EmailCampaignResponseDTO get(Long id);
     List<EmailCampaignResponseDTO> list();
     void send(Long id);
+    void sendNow(EmailCampaignRequestDTO dto);
 }
