@@ -42,7 +42,15 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/", "/error").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/verify-2fa-login",
+                        "/api/auth/register-enterprise",
+                        "/api/auth/verify-email",
+                        "/api/auth/resend-verification-email"
+                ).permitAll()
+                .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers("/api/offres/public/**").permitAll()
                 .requestMatchers("/api/evenements/upcoming").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
