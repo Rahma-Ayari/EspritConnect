@@ -102,6 +102,31 @@ public class EmailServiceImpl implements IEmailService {
 
     @Override
     @Async
+    public void sendEmailVerification(User user, String verificationToken) {
+        // Lien vers la page Angular (pas une page backend)
+        String verificationUrl = frontendUrl + "/verify-email?token=" + verificationToken;
+
+        String htmlContent = """
+            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+            <h2>Confirmez votre email — EspritConnect</h2>
+            <p>Bonjour <strong>%s</strong>,</p>
+            <p>Cliquez sur le bouton pour activer votre adresse email :</p>
+            <p><a href="%s" style="background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">Vérifier mon email</a></p>
+            <p style="color:#666;font-size:12px">Si le bouton ne fonctionne pas : %s</p>
+            <p style="color:#666;font-size:12px">Ce lien expire dans 24 heures.</p>
+            </body></html>
+            """.formatted(user.getNom(), verificationUrl, verificationUrl);
+
+        try {
+            sendHtmlEmail(user.getEmail(), "Vérifiez votre adresse email — EspritConnect", htmlContent);
+            log.info("Verification email sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send verification email to: {}", user.getEmail(), e);
+        }
+    }
+
+    @Override
+    @Async
     public void sendWelcomeEmailWithTemporaryPassword(User user, String temporaryPassword) {
         Context context = new Context(Locale.FRENCH);
         context.setVariable("userName", user.getNom());

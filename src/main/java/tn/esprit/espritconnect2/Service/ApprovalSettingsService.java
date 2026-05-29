@@ -25,7 +25,7 @@ public class ApprovalSettingsService {
                     .id(1L)
                     .autoApproveEspritEmails(true)
                     .emailNotificationsOnNewRegistration(true)
-                    .requireEmailVerification(false)
+                    .requireEmailVerification(true)
                     .notifyUserOnApproval(true)
                     .notifyUserOnDecline(false)
                     .autoApproveDomain("esprit.tn")

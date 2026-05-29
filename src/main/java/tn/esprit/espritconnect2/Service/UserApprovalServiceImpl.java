@@ -271,6 +271,7 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
                 .role(request.getRoleEnum())
                 .status(Status.EN_ATTENTE)
                 .enabled(false)
+                .emailVerified(true)
                 .build();
 
         User savedUser = userRepository.save(user);

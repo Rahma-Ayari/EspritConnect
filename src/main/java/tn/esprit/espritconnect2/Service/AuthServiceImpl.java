@@ -2,6 +2,7 @@ package tn.esprit.espritconnect2.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -11,22 +12,33 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletRequest;
 import tn.esprit.espritconnect2.DTO.AuthResponse;
 import tn.esprit.espritconnect2.DTO.EnterpriseRegisterRequest;
 import tn.esprit.espritconnect2.DTO.LoginRequest;
 import tn.esprit.espritconnect2.DTO.RegisterRequest;
+import tn.esprit.espritconnect2.DTO.RegisterResponse;
+import tn.esprit.espritconnect2.DTO.TwoFactorVerificationRequest;
+import tn.esprit.espritconnect2.exception.EmailNotVerifiedException;
 import tn.esprit.espritconnect2.Entitie.Alumni;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
 import tn.esprit.espritconnect2.Entitie.Role;
 import tn.esprit.espritconnect2.Entitie.Status;
 import tn.esprit.espritconnect2.Entitie.User;
+import tn.esprit.espritconnect2.Entitie.UserDevice;
 import tn.esprit.espritconnect2.Entitie.VerificationStatus;
 import tn.esprit.espritconnect2.Repository.AlumniRepository;
 import tn.esprit.espritconnect2.Repository.EtudiantRepository;
 import tn.esprit.espritconnect2.Repository.UserRepository;
+import tn.esprit.espritconnect2.Repository.UserDeviceRepository;
 import tn.esprit.espritconnect2.security.JwtUtils;
+import tn.esprit.espritconnect2.security.MfaRateLimiter;
+import tn.esprit.espritconnect2.security.UserAgentParser;
 
+import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -42,14 +54,56 @@ public class AuthServiceImpl implements IAuthService {
     private final ApprovalSettingsService approvalSettingsService;
     private final IEmailService emailService;
     private final IFileStorageService fileStorageService;
+    private final UserDeviceRepository userDeviceRepository;
+    private final LoginHistoryService loginHistoryService;
+    private final TwoFactorAuthService twoFactorAuthService;
+    private final MfaRateLimiter mfaRateLimiter;
+    private final UserAgentParser userAgentParser;
+    private final HttpServletRequest request;
+    private final EmailVerificationService emailVerificationService;
+    
+    @Value("${app.email-verification.expose-link-on-register:false}")
+    private boolean exposeVerificationLinkOnRegister;
+
+    private String getClientIp(HttpServletRequest request) {
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader == null || xfHeader.isEmpty()) {
+            return request.getRemoteAddr();
+        }
+        return xfHeader.split(",")[0].trim();
+    }
 
     @Override
+    @Transactional
     public AuthResponse login(LoginRequest req) {
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
 
             User user = (User) auth.getPrincipal();
+
+            // 2FA : utilisateurs uniquement (étudiant, alumni, enseignant — pas admin ni entreprise)
+            boolean isMfaApplicable = user.isTwoFactorEnabled() && user.getRole().isMfaEligible();
+
+            if (isMfaApplicable) {
+                boolean deviceTrusted = false;
+                if (req.getDeviceToken() != null && !req.getDeviceToken().trim().isEmpty()) {
+                    Optional<UserDevice> deviceOpt = userDeviceRepository.findByDeviceTokenAndUser(req.getDeviceToken(), user);
+                    if (deviceOpt.isPresent() && deviceOpt.get().getExpiresAt().isAfter(LocalDateTime.now())) {
+                        deviceTrusted = true;
+                    }
+                }
+
+                if (!deviceTrusted) {
+                    loginHistoryService.recordLoginAttempt(user, getClientIp(request), request.getHeader("User-Agent"), "PENDING_2FA");
+                    return AuthResponse.builder()
+                            .mfaRequired(true)
+                            .email(user.getEmail())
+                            .mfaPendingToken(jwtUtils.generateMfaPendingToken(user.getEmail()))
+                            .build();
+                }
+            }
+
             String token = jwtUtils.generateToken(user);
 
             int score = 0;
@@ -58,6 +112,8 @@ public class AuthServiceImpl implements IAuthService {
                         .map(e -> e.getScoreReadiness() != null ? e.getScoreReadiness() : 0)
                         .orElse(0);
             }
+
+            loginHistoryService.recordLoginAttempt(user, getClientIp(request), request.getHeader("User-Agent"), "SUCCESS");
 
             return AuthResponse.builder()
                     .token(token)
@@ -70,15 +126,106 @@ public class AuthServiceImpl implements IAuthService {
                     .build();
 
         } catch (BadCredentialsException e) {
+            userRepository.findByEmail(req.getEmail()).ifPresent(user -> {
+                loginHistoryService.recordLoginAttempt(user, getClientIp(request), request.getHeader("User-Agent"), "FAILED_PASSWORD");
+            });
             throw new BadCredentialsException("Email ou mot de passe incorrect.");
+        } catch (EmailNotVerifiedException e) {
+            userRepository.findByEmail(req.getEmail()).ifPresent(user -> {
+                loginHistoryService.recordLoginAttempt(user, getClientIp(request), request.getHeader("User-Agent"), "FAILED_EMAIL_NOT_VERIFIED");
+            });
+            throw e;
         } catch (DisabledException e) {
+            userRepository.findByEmail(req.getEmail()).ifPresent(user -> {
+                loginHistoryService.recordLoginAttempt(user, getClientIp(request), request.getHeader("User-Agent"), "FAILED_DISABLED");
+            });
             throw new DisabledException("Votre compte est en attente de validation par l'administrateur.");
         }
     }
 
     @Override
     @Transactional
-    public AuthResponse register(RegisterRequest req) {
+    public AuthResponse verify2faLogin(TwoFactorVerificationRequest verifyReq, String ipAddress, String userAgent) {
+        if (!jwtUtils.validateMfaPendingToken(verifyReq.getMfaPendingToken(), verifyReq.getEmail())) {
+            throw new BadCredentialsException("Session 2FA expirée. Reconnectez-vous avec votre email et mot de passe.");
+        }
+
+        User user = userRepository.findByEmail(verifyReq.getEmail())
+                .orElseThrow(() -> new BadCredentialsException("Email ou mot de passe incorrect."));
+
+        if (!user.getRole().isMfaEligible()) {
+            throw new BadCredentialsException("L'authentification 2FA n'est pas applicable à ce type de compte.");
+        }
+
+        if (!user.isTwoFactorEnabled() || user.getTwoFactorSecret() == null) {
+            throw new BadCredentialsException("La double authentification n'est pas activée sur ce compte.");
+        }
+
+        if (mfaRateLimiter.isLocked(user.getEmail())) {
+            throw new BadCredentialsException("Trop de tentatives de code 2FA. Votre compte est bloqué pour 15 minutes.");
+        }
+
+        boolean isCodeValid = false;
+        boolean isBackupUsed = false;
+        String rawCode = verifyReq.getCode();
+
+        if (twoFactorAuthService.isBackupCodeFormat(rawCode)) {
+            String inputCode = twoFactorAuthService.normalizeBackupCode(rawCode);
+            if (user.getBackupCodes() != null && user.getBackupCodes().contains(inputCode)) {
+                user.getBackupCodes().remove(inputCode);
+                userRepository.save(user);
+                isCodeValid = true;
+                isBackupUsed = true;
+            }
+        } else {
+            isCodeValid = twoFactorAuthService.verifyCode(user.getTwoFactorSecret(), rawCode);
+        }
+
+        if (!isCodeValid) {
+            mfaRateLimiter.recordFailure(user.getEmail());
+            loginHistoryService.recordLoginAttempt(user, ipAddress, userAgent, "FAILED_2FA");
+            throw new BadCredentialsException("Code de double authentification incorrect. Restant: " + mfaRateLimiter.getRemainingAttempts(user.getEmail()));
+        }
+
+        mfaRateLimiter.recordSuccess(user.getEmail());
+
+        String newDeviceToken = null;
+        if (verifyReq.isRememberDevice()) {
+            newDeviceToken = UUID.randomUUID().toString();
+            UserDevice userDevice = UserDevice.builder()
+                    .user(user)
+                    .deviceToken(newDeviceToken)
+                    .deviceName(userAgentParser.parse(userAgent).browser + " on " + userAgentParser.parse(userAgent).os)
+                    .expiresAt(LocalDateTime.now().plusDays(30))
+                    .build();
+            userDeviceRepository.save(userDevice);
+        }
+
+        loginHistoryService.recordLoginAttempt(user, ipAddress, userAgent, isBackupUsed ? "SUCCESS_BACKUP" : "SUCCESS");
+
+        String token = jwtUtils.generateToken(user);
+        int score = 0;
+        if (user.getRole() == Role.ETUDIANT) {
+            score = etudiantRepository.findByEmail(user.getEmail())
+                    .map(e -> e.getScoreReadiness() != null ? e.getScoreReadiness() : 0)
+                    .orElse(0);
+        }
+
+        return AuthResponse.builder()
+                .token(token)
+                .type("Bearer")
+                .role(user.getRole().name())
+                .nom(user.getNom())
+                .email(user.getEmail())
+                .scoreReadiness(score)
+                .userId(user.getId().toString())
+                .deviceToken(newDeviceToken)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public RegisterResponse register(RegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("Un compte avec cet email existe déjà.");
         }
@@ -101,8 +248,9 @@ public class AuthServiceImpl implements IAuthService {
                 .email(req.getEmail())
                 .password(encodedPassword)
                 .role(role)
-                .enabled(false) // Toujours false à la création pour la base de données
-                .status(Status.EN_ATTENTE) // On force aussi la colonne physique 'status' à EN_ATTENTE
+                .enabled(false)
+                .emailVerified(false)
+                .status(Status.EN_ATTENTE)
                 .build();
         
         log.info("Création de l'utilisateur {} - statut DB forcé à PENDING", user.getEmail());
@@ -113,8 +261,6 @@ public class AuthServiceImpl implements IAuthService {
             emailService.sendNewRegistrationNotification(user);
         }
 
-        int scoreReadiness = 0;
-        
         switch (role) {
             case ETUDIANT:
                 if (etudiantRepository.existsByEmail(req.getEmail())) {
@@ -191,22 +337,19 @@ public class AuthServiceImpl implements IAuthService {
                 break;
         }
 
-        String token = jwtUtils.generateToken(user);
+        String verificationUrl = emailVerificationService.sendVerificationEmail(user);
 
-        return AuthResponse.builder()
-                .token(token)
-                .type("Bearer")
-                .role(role.name())
-                .nom(req.getNom())
+        return RegisterResponse.builder()
+                .message("Veuillez vérifier votre email.")
                 .email(req.getEmail())
-                .scoreReadiness(scoreReadiness)
-                .userId(user.getId().toString())
+                .emailVerificationRequired(true)
+                .verificationUrl(exposeVerificationLinkOnRegister ? verificationUrl : null)
                 .build();
     }
 
     @Override
     @Transactional
-    public AuthResponse registerEnterprise(EnterpriseRegisterRequest req, MultipartFile document) {
+    public RegisterResponse registerEnterprise(EnterpriseRegisterRequest req, MultipartFile document) {
         if (document == null || document.isEmpty()) {
             throw new IllegalArgumentException("Le document justificatif est obligatoire pour l'inscription d'une entreprise.");
         }
@@ -231,6 +374,7 @@ public class AuthServiceImpl implements IAuthService {
                 .password(encodedPassword)
                 .role(Role.ENTREPRISE)
                 .enabled(false)
+                .emailVerified(false)
                 .status(Status.EN_ATTENTE)
                 .businessRegistrationNumber(req.getBusinessRegistrationNumber())
                 .companySector(req.getCompanySector())
@@ -249,17 +393,12 @@ public class AuthServiceImpl implements IAuthService {
         log.info("Entreprise {} inscrite avec document justificatif: {}", user.getEmail(), document.getOriginalFilename());
 
         emailService.sendNewRegistrationNotification(user);
+        emailVerificationService.sendVerificationEmail(user);
 
-        String token = jwtUtils.generateToken(user);
-
-        return AuthResponse.builder()
-                .token(token)
-                .type("Bearer")
-                .role(Role.ENTREPRISE.name())
-                .nom(req.getNom())
+        return RegisterResponse.builder()
+                .message("Veuillez vérifier votre email.")
                 .email(req.getEmail())
-                .scoreReadiness(0)
-                .userId(user.getId().toString())
+                .emailVerificationRequired(true)
                 .build();
     }
 }

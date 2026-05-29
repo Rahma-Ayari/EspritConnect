@@ -3,6 +3,7 @@ package tn.esprit.espritconnect2.Repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import tn.esprit.espritconnect2.Entitie.Role;
@@ -89,4 +90,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             @Param("role") Role role, 
             @Param("search") String search, 
             @Param("status") VerificationStatus status);
+
+    /** Anciens comptes : email_verified NULL → false avant chargement JPA. */
+    @Modifying
+    @Query(value = "UPDATE users SET email_verified = 0 WHERE email_verified IS NULL", nativeQuery = true)
+    int backfillNullEmailVerified();
 }
