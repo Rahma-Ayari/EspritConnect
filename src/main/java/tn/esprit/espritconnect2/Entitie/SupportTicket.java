@@ -19,7 +19,14 @@ public class SupportTicket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String subject;
+    private String title;
+
+    private String attachmentUrl;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "ticket_tags", joinColumns = @JoinColumn(name = "ticket_id"))
+    @Column(name = "tag")
+    private List<String> tags;
 
     @Column(columnDefinition = "TEXT")
     private String description;

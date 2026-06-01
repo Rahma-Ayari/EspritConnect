@@ -17,6 +17,9 @@ public class TicketMessageDTO {
     
     private UUID senderId;
     private String senderName;
+
+    /** Relative URL of an attached file/screenshot, null if no attachment */
+    private String attachmentUrl;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;

@@ -151,8 +151,8 @@ public class BadgeServiceImpl implements IBadgeService {
             log.info("ID mismatch detected. Mapping frontend ID {} to DB ID {}", userId, actualId);
         }
 
-        // Using native query with the actual ID found in DB
-        List<UserBadgeDTO> badges = userBadgeRepository.findByUserIdNative(actualId.toString()).stream()
+        // Using standard JPA repository method with the actual UUID found in DB
+        List<UserBadgeDTO> badges = userBadgeRepository.findByUser_Id(actualId).stream()
                 .map(this::mapUserBadgeToDTO)
                 .collect(Collectors.toList());
         

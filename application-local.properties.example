@@ -1,0 +1,21 @@
+# Copy to: src/main/resources/application-local.properties
+# This file is gitignored — never commit real keys.
+
+# ========== RECOMMENDED: Groq (free, fast, feels much smarter than rate-limited Gemini) ==========
+# 1. Create key: https://console.groq.com/keys
+# 2. Uncomment and paste:
+# app.chatbot.provider=openai
+# app.chatbot.api-key=gsk_your_groq_key_here
+# app.chatbot.model=llama-3.3-70b-versatile
+# app.chatbot.openai-base-url=https://api.groq.com/openai/v1
+
+# ========== Optional: Gemini as backup when Groq is primary ==========
+# app.chatbot.fallback-enabled=true
+# app.chatbot.fallback-provider=gemini
+# app.chatbot.fallback-api-key=your_gemini_key
+# app.chatbot.fallback-model=gemini-2.0-flash-lite
+
+# ========== Or Gemini only (often hits free-tier rate limits) ==========
+# app.chatbot.provider=gemini
+# app.chatbot.api-key=your_gemini_key
+# app.chatbot.model=gemini-2.0-flash-lite

@@ -14,10 +14,12 @@ import java.util.UUID;
 @AllArgsConstructor
 public class SupportTicketDTO {
     private Long id;
-    private String subject;
+    private String title;
     private String description;
     private TicketStatus status;
     private TicketPriority priority;
+    private String attachmentUrl;
+    private java.util.List<String> tags;
     
     private Long categoryId;
     private String categoryName;
@@ -36,4 +38,7 @@ public class SupportTicketDTO {
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime resolvedAt;
+
+    private String slaMessage;
+    private java.util.List<TicketHistoryDTO> timeline;
 }

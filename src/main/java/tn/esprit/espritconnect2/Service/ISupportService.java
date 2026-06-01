@@ -32,5 +32,17 @@ public interface ISupportService {
     void deleteFAQ(Long id);
     List<FAQDTO> getAllFAQs();
     List<FAQDTO> searchFAQs(String query);
+    List<FAQDTO> getFAQsByCategory(Long categoryId);
+    List<FAQDTO> getPopularFAQs();
+    List<FAQDTO> getImportantFAQs();
+    FAQDTO incrementFAQView(Long id);
+    FAQDTO voteOnFAQ(Long id, boolean helpful);
+    FAQDTO markFAQImportant(Long id, boolean important);
     void seedData();
+
+    // Additional Support Capability Methods
+    SupportTicketDTO reopenTicket(Long ticketId, UUID userId);
+    byte[] exportTicketHistory(Long ticketId);
+    List<SupportTicketDTO> searchAndFilterTickets(tn.esprit.espritconnect2.Entitie.TicketStatus status, tn.esprit.espritconnect2.Entitie.TicketPriority priority, Long categoryId, String searchQuery);
+    java.util.Map<String, Object> askChatbot(String message, java.util.List<ChatbotHistoryItemDTO> history);
 }

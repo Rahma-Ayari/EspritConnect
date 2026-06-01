@@ -32,6 +32,9 @@ public class TicketMessage {
 
     private boolean isInternal;
 
+    /** Relative URL of an attached file/screenshot, e.g. /api/support/files/filename.png */
+    private String attachmentUrl;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

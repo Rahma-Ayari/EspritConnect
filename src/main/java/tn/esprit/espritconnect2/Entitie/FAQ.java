@@ -27,6 +27,22 @@ public class FAQ {
     @JoinColumn(name = "category_id")
     private TicketCategory category;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean isImportant = false;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private int viewCount = 0;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private int helpfulCount = 0;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private int notHelpfulCount = 0;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
