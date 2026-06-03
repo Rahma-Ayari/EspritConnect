@@ -40,4 +40,5 @@ public class ProfilRequestDTO {
     private String siteWeb;
     private String dateNaissance;
     private String genre;
+    private String nomProprietaire;
 }

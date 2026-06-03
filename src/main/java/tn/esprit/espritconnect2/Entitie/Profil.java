@@ -16,6 +16,8 @@ public class Profil {
     private Long idProfil;
 
     private String userId;
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String photo;
     private String lienLinkedIn;
     private String bio;
@@ -31,6 +33,7 @@ public class Profil {
     private String siteWeb;
     private String dateNaissance;
     private String genre;
+    private String nomProprietaire;
 
     @OneToMany(mappedBy = "profil")
     @JsonIgnore

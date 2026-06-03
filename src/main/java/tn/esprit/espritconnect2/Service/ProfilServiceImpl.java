@@ -44,6 +44,7 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setSiteWeb(dto.getSiteWeb());
         profil.setDateNaissance(dto.getDateNaissance());
         profil.setGenre(dto.getGenre());
+        profil.setNomProprietaire(dto.getNomProprietaire());
         return profil;
     }
 
@@ -56,23 +57,34 @@ public class ProfilServiceImpl implements IProfilService {
     private ProfilResponseDTO toDTO(Profil profil) {
 
         // Déterminer dynamiquement le propriétaire du profil
-        String nomProprietaire = "Inconnu";
+        String nomProprietaire = profil.getNomProprietaire(); // Priorité au nom stocké dans le profil
         String typeProprietaire = "INCONNU";
 
         if (profil.getEtudiant() != null) {
-            nomProprietaire = profil.getEtudiant().getNom();
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getEtudiant().getNom();
+            }
             typeProprietaire = "ETUDIANT";
         } else if (profil.getAlumni() != null) {
-            // Adapter selon les champs de ton entité Alumni
-            nomProprietaire = profil.getAlumni().getNom();
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getAlumni().getNom();
+            }
             typeProprietaire = "ALUMNI";
         } else if (profil.getEntreprise() != null) {
-            // Adapter selon les champs de ton entité Entreprise
-            nomProprietaire = profil.getEntreprise().getNom();
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getEntreprise().getNom();
+            }
             typeProprietaire = "ENTREPRISE";
         } else if (profil.getAdministrateur() != null) {
-            nomProprietaire = profil.getAdministrateur().getNom();
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getAdministrateur().getNom();
+            }
             typeProprietaire = "ADMINISTRATEUR";
+        }
+
+        // Fallback final si toujours null
+        if (nomProprietaire == null || nomProprietaire.isEmpty()) {
+            nomProprietaire = "Inconnu";
         }
 
         return ProfilResponseDTO.builder()
@@ -179,6 +191,7 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setSiteWeb(dto.getSiteWeb());
         profil.setDateNaissance(dto.getDateNaissance());
         profil.setGenre(dto.getGenre());
+        profil.setNomProprietaire(dto.getNomProprietaire());
 
         return toDTO(profilRepository.save(profil));
     }
