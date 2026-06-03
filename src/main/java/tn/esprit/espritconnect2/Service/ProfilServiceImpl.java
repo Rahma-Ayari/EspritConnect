@@ -35,6 +35,15 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setLienLinkedIn(dto.getLienLinkedIn());
         profil.setBio(dto.getBio());
         profil.setLienGitHub(dto.getLienGitHub());
+        profil.setPrenom(dto.getPrenom());
+        profil.setTelephone(dto.getTelephone());
+        profil.setAdresse(dto.getAdresse());
+        profil.setVille(dto.getVille());
+        profil.setPays(dto.getPays());
+        profil.setCodePostal(dto.getCodePostal());
+        profil.setSiteWeb(dto.getSiteWeb());
+        profil.setDateNaissance(dto.getDateNaissance());
+        profil.setGenre(dto.getGenre());
         return profil;
     }
 
@@ -73,6 +82,15 @@ public class ProfilServiceImpl implements IProfilService {
                 .lienLinkedIn(profil.getLienLinkedIn())
                 .bio(profil.getBio())
                 .lienGitHub(profil.getLienGitHub())
+                .prenom(profil.getPrenom())
+                .telephone(profil.getTelephone())
+                .adresse(profil.getAdresse())
+                .ville(profil.getVille())
+                .pays(profil.getPays())
+                .codePostal(profil.getCodePostal())
+                .siteWeb(profil.getSiteWeb())
+                .dateNaissance(profil.getDateNaissance())
+                .genre(profil.getGenre())
                 .nomProprietaire(nomProprietaire)
                 .typeProprietaire(typeProprietaire)
                 .build();
@@ -116,6 +134,22 @@ public class ProfilServiceImpl implements IProfilService {
         return toDTO(profil);
     }
 
+    // ─── READ CURRENT USER PROFILE ─────────────────────────────────────────────
+    @Override
+    public ProfilResponseDTO getCurrentUserProfile(String email) {
+        Profil profil = profilRepository.findByUserId(email)
+                .orElse(null);
+        if (profil == null) {
+            // Retourner un profil vide si l'utilisateur n'a pas encore de profil
+            return ProfilResponseDTO.builder()
+                    .userId(email)
+                    .nomProprietaire("Utilisateur")
+                    .typeProprietaire("INCONNU")
+                    .build();
+        }
+        return toDTO(profil);
+    }
+
     // ─── UPDATE ───────────────────────────────────────────────────────────────
     @Override
     public ProfilResponseDTO updateProfil(Long id, ProfilRequestDTO dto) {
@@ -136,6 +170,15 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setLienLinkedIn(dto.getLienLinkedIn());
         profil.setBio(dto.getBio());
         profil.setLienGitHub(dto.getLienGitHub());
+        profil.setPrenom(dto.getPrenom());
+        profil.setTelephone(dto.getTelephone());
+        profil.setAdresse(dto.getAdresse());
+        profil.setVille(dto.getVille());
+        profil.setPays(dto.getPays());
+        profil.setCodePostal(dto.getCodePostal());
+        profil.setSiteWeb(dto.getSiteWeb());
+        profil.setDateNaissance(dto.getDateNaissance());
+        profil.setGenre(dto.getGenre());
 
         return toDTO(profilRepository.save(profil));
     }

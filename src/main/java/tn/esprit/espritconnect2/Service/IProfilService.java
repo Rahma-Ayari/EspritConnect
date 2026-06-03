@@ -24,6 +24,9 @@ public interface IProfilService {
     // Récupérer un profil par userId
     ProfilResponseDTO getProfilByUserId(String userId);
 
+    // Récupérer le profil de l'utilisateur connecté
+    ProfilResponseDTO getCurrentUserProfile(String email);
+
     // Modifier un profil existant
     ProfilResponseDTO updateProfil(Long id, ProfilRequestDTO dto);
 

@@ -21,6 +21,17 @@ public class Profil {
     private String bio;
     private String lienGitHub;
 
+    // Champs additionnels pour un profil complet
+    private String prenom;
+    private String telephone;
+    private String adresse;
+    private String ville;
+    private String pays;
+    private String codePostal;
+    private String siteWeb;
+    private String dateNaissance;
+    private String genre;
+
     @OneToMany(mappedBy = "profil")
     @JsonIgnore
     private List<Message> messages;

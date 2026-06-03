@@ -21,7 +21,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/profils")
-@CrossOrigin(origins = "http://localhost:4200")
+@CrossOrigin(origins = "http://localhost:4200", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 @RequiredArgsConstructor
 public class ProfilController {
 
@@ -68,6 +68,21 @@ public class ProfilController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<ProfilResponseDTO> getProfilByUserId(@PathVariable String userId) {
         return ResponseEntity.ok(profilService.getProfilByUserId(userId));
+    }
+
+    /**
+     * GET /api/profils/current
+     * Récupère le profil de l'utilisateur connecté.
+     * L'email est passé via le header Authorization (JWT token).
+     */
+    @GetMapping("/current")
+    public ResponseEntity<ProfilResponseDTO> getCurrentUserProfile(
+            org.springframework.security.core.Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String email = authentication.getName();
+        return ResponseEntity.ok(profilService.getCurrentUserProfile(email));
     }
 
     /**
