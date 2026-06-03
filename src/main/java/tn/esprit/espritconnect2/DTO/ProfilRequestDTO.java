@@ -41,4 +41,15 @@ public class ProfilRequestDTO {
     private String dateNaissance;
     private String genre;
     private String nomProprietaire;
+
+    // Champs issus de l'inscription
+    private String niveau;
+    private String filiere;
+    private Integer anneePromotion;
+    private String domaine;
+    private Boolean disponibleMentorat;
+    private String entrepriseActuelle;
+    private String registreCommerce;
+    private String secteurActivite;
+    private String descriptionEntreprise;
 }
