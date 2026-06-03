@@ -35,6 +35,16 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setLienLinkedIn(dto.getLienLinkedIn());
         profil.setBio(dto.getBio());
         profil.setLienGitHub(dto.getLienGitHub());
+        profil.setPrenom(dto.getPrenom());
+        profil.setTelephone(dto.getTelephone());
+        profil.setAdresse(dto.getAdresse());
+        profil.setVille(dto.getVille());
+        profil.setPays(dto.getPays());
+        profil.setCodePostal(dto.getCodePostal());
+        profil.setSiteWeb(dto.getSiteWeb());
+        profil.setDateNaissance(dto.getDateNaissance());
+        profil.setGenre(dto.getGenre());
+        profil.setNomProprietaire(dto.getNomProprietaire());
         return profil;
     }
 
@@ -47,23 +57,34 @@ public class ProfilServiceImpl implements IProfilService {
     private ProfilResponseDTO toDTO(Profil profil) {
 
         // Déterminer dynamiquement le propriétaire du profil
-        String nomProprietaire = "Inconnu";
+        String nomProprietaire = profil.getNomProprietaire(); // Priorité au nom stocké dans le profil
         String typeProprietaire = "INCONNU";
 
         if (profil.getEtudiant() != null) {
-            nomProprietaire = profil.getEtudiant().getNom();
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getEtudiant().getNom();
+            }
             typeProprietaire = "ETUDIANT";
         } else if (profil.getAlumni() != null) {
-            // Adapter selon les champs de ton entité Alumni
-            nomProprietaire = profil.getAlumni().getNom();
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getAlumni().getNom();
+            }
             typeProprietaire = "ALUMNI";
         } else if (profil.getEntreprise() != null) {
-            // Adapter selon les champs de ton entité Entreprise
-            nomProprietaire = profil.getEntreprise().getNom();
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getEntreprise().getNom();
+            }
             typeProprietaire = "ENTREPRISE";
         } else if (profil.getAdministrateur() != null) {
-            nomProprietaire = profil.getAdministrateur().getNom();
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getAdministrateur().getNom();
+            }
             typeProprietaire = "ADMINISTRATEUR";
+        }
+
+        // Fallback final si toujours null
+        if (nomProprietaire == null || nomProprietaire.isEmpty()) {
+            nomProprietaire = "Inconnu";
         }
 
         return ProfilResponseDTO.builder()
@@ -73,6 +94,15 @@ public class ProfilServiceImpl implements IProfilService {
                 .lienLinkedIn(profil.getLienLinkedIn())
                 .bio(profil.getBio())
                 .lienGitHub(profil.getLienGitHub())
+                .prenom(profil.getPrenom())
+                .telephone(profil.getTelephone())
+                .adresse(profil.getAdresse())
+                .ville(profil.getVille())
+                .pays(profil.getPays())
+                .codePostal(profil.getCodePostal())
+                .siteWeb(profil.getSiteWeb())
+                .dateNaissance(profil.getDateNaissance())
+                .genre(profil.getGenre())
                 .nomProprietaire(nomProprietaire)
                 .typeProprietaire(typeProprietaire)
                 .build();
@@ -116,6 +146,22 @@ public class ProfilServiceImpl implements IProfilService {
         return toDTO(profil);
     }
 
+    // ─── READ CURRENT USER PROFILE ─────────────────────────────────────────────
+    @Override
+    public ProfilResponseDTO getCurrentUserProfile(String email) {
+        Profil profil = profilRepository.findByUserId(email)
+                .orElse(null);
+        if (profil == null) {
+            // Retourner un profil vide si l'utilisateur n'a pas encore de profil
+            return ProfilResponseDTO.builder()
+                    .userId(email)
+                    .nomProprietaire("Utilisateur")
+                    .typeProprietaire("INCONNU")
+                    .build();
+        }
+        return toDTO(profil);
+    }
+
     // ─── UPDATE ───────────────────────────────────────────────────────────────
     @Override
     public ProfilResponseDTO updateProfil(Long id, ProfilRequestDTO dto) {
@@ -136,6 +182,16 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setLienLinkedIn(dto.getLienLinkedIn());
         profil.setBio(dto.getBio());
         profil.setLienGitHub(dto.getLienGitHub());
+        profil.setPrenom(dto.getPrenom());
+        profil.setTelephone(dto.getTelephone());
+        profil.setAdresse(dto.getAdresse());
+        profil.setVille(dto.getVille());
+        profil.setPays(dto.getPays());
+        profil.setCodePostal(dto.getCodePostal());
+        profil.setSiteWeb(dto.getSiteWeb());
+        profil.setDateNaissance(dto.getDateNaissance());
+        profil.setGenre(dto.getGenre());
+        profil.setNomProprietaire(dto.getNomProprietaire());
 
         return toDTO(profilRepository.save(profil));
     }

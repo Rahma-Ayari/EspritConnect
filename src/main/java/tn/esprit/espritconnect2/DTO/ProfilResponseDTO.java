@@ -22,6 +22,17 @@ public class ProfilResponseDTO {
     private String bio;
     private String lienGitHub;
 
+    // Champs additionnels pour un profil complet
+    private String prenom;
+    private String telephone;
+    private String adresse;
+    private String ville;
+    private String pays;
+    private String codePostal;
+    private String siteWeb;
+    private String dateNaissance;
+    private String genre;
+
     // Nom du propriétaire du profil (Etudiant, Alumni, Admin, ou Entreprise)
     // Calculé dans le service selon qui est lié à ce profil
     private String nomProprietaire;
