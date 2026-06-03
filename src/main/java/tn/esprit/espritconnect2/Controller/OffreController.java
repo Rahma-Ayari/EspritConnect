@@ -15,8 +15,10 @@ import tn.esprit.espritconnect2.Service.OffreAiService;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/api/offres")
+// DISABLED: This old controller conflicts with the new JobOfferController
+// The new JobOfferController provides comprehensive JOBS module functionality
+// @RestController
+// @RequestMapping("/api/offres")
 @RequiredArgsConstructor
 public class OffreController {
 

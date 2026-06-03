@@ -4,6 +4,7 @@ public enum Type {
     STAGE,
     EMPLOI,
     APPRENTISSAGE,
+    PFE,
     PORTFOLIO,
     CV
 }
