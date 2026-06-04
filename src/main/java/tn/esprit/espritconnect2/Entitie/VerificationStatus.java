@@ -1,8 +1,8 @@
 package tn.esprit.espritconnect2.Entitie;
 
 public enum VerificationStatus {
-    DOCUMENTS_REQUIRED,
-    PENDING_REVIEW,
+    NOT_SUBMITTED,
+    PENDING,
     VERIFIED,
     REJECTED
 }

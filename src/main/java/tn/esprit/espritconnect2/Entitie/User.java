@@ -9,6 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -46,7 +47,11 @@ public class User implements UserDetails {
 
     @Column(name = "enabled")
     @Builder.Default
-    private boolean enabled = false; // Désactivé par défaut
+    private boolean enabled = false;
+
+    @Column(name = "email_verified")
+    @Builder.Default
+    private Boolean emailVerified = false;
 
     /** Refusé par l'admin : retiré de la file d'approbation. */
     @Column(name = "inscription_refusee", nullable = false)
@@ -58,9 +63,89 @@ public class User implements UserDetails {
     @Builder.Default
     private Status status = Status.EN_ATTENTE;
 
+    // Champs de vérification entreprise
+    @Column(name = "verification_document_path")
+    private String verificationDocumentPath;
+
+    @Column(name = "verification_document_name")
+    private String verificationDocumentName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status")
+    @Builder.Default
+    private VerificationStatus verificationStatus = VerificationStatus.NOT_SUBMITTED;
+
+    @Column(name = "business_registration_number")
+    private String businessRegistrationNumber;
+
+    @Column(name = "company_sector")
+    private String companySector;
+
+    @Column(name = "company_website")
+    private String companyWebsite;
+
+    @Column(name = "company_description", length = 1000)
+    private String companyDescription;
+
+    @Column(name = "verification_notes", length = 500)
+    private String verificationNotes;
+
+    @Column(name = "verified_at")
+    private LocalDateTime verifiedAt;
+
+    @Column(name = "verified_by")
+    private String verifiedBy;
+
+    @Column(name = "two_factor_enabled")
+    @Builder.Default
+    private Boolean twoFactorEnabled = false;
+
+    @Column(name = "two_factor_secret")
+    private String twoFactorSecret;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_backup_codes", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "backup_code")
+    @Builder.Default
+    private List<String> backupCodes = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (verificationStatus == null) {
+            verificationStatus = VerificationStatus.NOT_SUBMITTED;
+        }
+        if (twoFactorEnabled == null) {
+            twoFactorEnabled = false;
+        }
+        if (emailVerified == null) {
+            emailVerified = false;
+        }
+    }
+
+    @PostLoad
+    private void normalizeNullableBooleans() {
+        if (twoFactorEnabled == null) {
+            twoFactorEnabled = false;
+        }
+        if (emailVerified == null) {
+            emailVerified = false;
+        }
+    }
+
+    /** Null-safe (colonnes NULL en base → non vérifié). */
+    public boolean isEmailVerified() {
+        return Boolean.TRUE.equals(emailVerified);
+    }
+
+    /** Null-safe (colonnes NULL en base → désactivé). */
+    public boolean isTwoFactorEnabled() {
+        return Boolean.TRUE.equals(twoFactorEnabled);
+    }
+
+    /** Compte admin : pas de vérification email obligatoire. */
+    public boolean requiresEmailVerification() {
+        return role != Role.ADMIN;
     }
 
     @Override

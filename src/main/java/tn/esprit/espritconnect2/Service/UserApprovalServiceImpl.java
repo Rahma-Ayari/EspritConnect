@@ -1,8 +1,11 @@
 package tn.esprit.espritconnect2.Service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tn.esprit.espritconnect2.DTO.BulkAddUsersResponse;
+import tn.esprit.espritconnect2.DTO.NewUserRequest;
 import tn.esprit.espritconnect2.DTO.UserApprovalDTO;
 import tn.esprit.espritconnect2.DTO.UserApprovalStatsDTO;
 import tn.esprit.espritconnect2.Entitie.Alumni;
@@ -28,6 +31,7 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     private final AlumniRepository alumniRepository;
     private final IEmailService emailService;
     private final ApprovalSettingsService approvalSettingsService;
+    private final PasswordEncoder passwordEncoder;
 
     private static final String[] AVATAR_COLORS = {
         "#E53935", "#D81B60", "#8E24AA", "#5E35B1", "#3949AB",
@@ -38,12 +42,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
 
     @Override
     public List<UserApprovalDTO> getPendingUsers() {
-        return processPendingUsers(userRepository.findByEnabledFalse());
+        // Filter by status EN_ATTENTE and exclude ADMIN users
+        return processPendingUsers(userRepository.findByStatusAndRoleNot(Status.EN_ATTENTE, Role.ADMIN));
     }
 
     @Override
     public List<UserApprovalDTO> getPendingUsersByRole(Role role) {
-        return processPendingUsers(userRepository.findByRoleAndEnabledFalse(role));
+        return processPendingUsers(userRepository.findByRoleAndStatus(role, Status.EN_ATTENTE));
     }
 
     @Override
@@ -51,15 +56,15 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
         List<User> users;
         if (search == null || search.trim().isEmpty()) {
             if (role == null) {
-                users = userRepository.findByEnabledFalse();
+                users = userRepository.findByStatusAndRoleNot(Status.EN_ATTENTE, Role.ADMIN);
             } else {
-                users = userRepository.findByRoleAndEnabledFalse(role);
+                users = userRepository.findByRoleAndStatus(role, Status.EN_ATTENTE);
             }
         } else {
             if (role == null) {
-                users = userRepository.searchPendingUsers(search.trim());
+                users = userRepository.searchPendingUsersByStatus(search.trim(), Status.EN_ATTENTE);
             } else {
-                users = userRepository.searchPendingUsersByRole(search.trim(), role);
+                users = userRepository.searchPendingUsersByRoleAndStatus(search.trim(), role, Status.EN_ATTENTE);
             }
         }
         return processPendingUsers(users);
@@ -80,6 +85,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
             toAutoApprove.forEach(u -> {
                 u.setEnabled(true);
                 u.setStatus(Status.ACCEPTEE);
+                if (u.getRole() == Role.ENTREPRISE) {
+                    u.setVerificationStatus(tn.esprit.espritconnect2.Entitie.VerificationStatus.VERIFIED);
+                    if (u.getVerifiedAt() == null) {
+                        u.setVerifiedAt(java.time.LocalDateTime.now());
+                        u.setVerifiedBy("Auto Approved");
+                    }
+                }
                 emailService.sendApprovalNotification(u);
             });
             userRepository.saveAll(toAutoApprove);
@@ -98,6 +110,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
         
         user.setEnabled(true);
         user.setStatus(Status.ACCEPTEE);
+        if (user.getRole() == Role.ENTREPRISE) {
+            user.setVerificationStatus(tn.esprit.espritconnect2.Entitie.VerificationStatus.VERIFIED);
+            if (user.getVerifiedAt() == null) {
+                user.setVerifiedAt(java.time.LocalDateTime.now());
+                user.setVerifiedBy("Admin");
+            }
+        }
         User savedUser = userRepository.save(user);
         
         emailService.sendApprovalNotification(savedUser);
@@ -132,6 +151,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
         users.forEach(user -> {
             user.setEnabled(true);
             user.setStatus(Status.ACCEPTEE);
+            if (user.getRole() == Role.ENTREPRISE) {
+                user.setVerificationStatus(tn.esprit.espritconnect2.Entitie.VerificationStatus.VERIFIED);
+                if (user.getVerifiedAt() == null) {
+                    user.setVerifiedAt(java.time.LocalDateTime.now());
+                    user.setVerifiedBy("Admin Bulk");
+                }
+            }
         });
         List<User> savedUsers = userRepository.saveAll(users);
         
@@ -154,8 +180,8 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     @Override
     public UserApprovalStatsDTO getApprovalStats() {
         return UserApprovalStatsDTO.builder()
-                .pendingCount(userRepository.countByEnabledFalse())
-                .approvedCount(userRepository.countByEnabledTrue())
+                .pendingCount(userRepository.countByStatusAndRoleNot(Status.EN_ATTENTE, Role.ADMIN))
+                .approvedCount(userRepository.countByStatus(Status.ACCEPTEE))
                 .totalStudents(userRepository.countByRole(Role.ETUDIANT))
                 .totalAlumni(userRepository.countByRole(Role.ALUMNI))
                 .build();
@@ -249,5 +275,115 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
                     .findFirst()
                     .ifPresent(alumniRepository::delete);
         }
+    }
+
+    @Override
+    public UserApprovalDTO addUser(NewUserRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Un utilisateur avec cet email existe déjà: " + request.getEmail());
+        }
+
+        String tempPassword = generateTemporaryPassword();
+        
+        User user = User.builder()
+                .nom(request.getNom())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(tempPassword))
+                .role(request.getRoleEnum())
+                .status(Status.EN_ATTENTE)
+                .enabled(false)
+                .emailVerified(true)
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        createRoleSpecificEntity(savedUser, request.getAffiliation());
+
+        emailService.sendWelcomeEmailWithTemporaryPassword(savedUser, tempPassword);
+
+        return mapToDTO(savedUser);
+    }
+
+    @Override
+    public BulkAddUsersResponse bulkAddUsers(List<NewUserRequest> users) {
+        List<UserApprovalDTO> addedUsers = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        int successCount = 0;
+        int failedCount = 0;
+
+        for (int i = 0; i < users.size(); i++) {
+            NewUserRequest request = users.get(i);
+            try {
+                if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+                    errors.add("Ligne " + (i + 1) + ": Email manquant");
+                    failedCount++;
+                    continue;
+                }
+                if (request.getNom() == null || request.getNom().trim().isEmpty()) {
+                    errors.add("Ligne " + (i + 1) + ": Nom manquant");
+                    failedCount++;
+                    continue;
+                }
+                if (userRepository.existsByEmail(request.getEmail())) {
+                    errors.add("Ligne " + (i + 1) + ": Email déjà utilisé (" + request.getEmail() + ")");
+                    failedCount++;
+                    continue;
+                }
+
+                UserApprovalDTO added = addUser(request);
+                addedUsers.add(added);
+                successCount++;
+            } catch (Exception e) {
+                errors.add("Ligne " + (i + 1) + ": " + e.getMessage());
+                failedCount++;
+            }
+        }
+
+        return BulkAddUsersResponse.builder()
+                .successCount(successCount)
+                .failedCount(failedCount)
+                .errors(errors)
+                .users(addedUsers)
+                .build();
+    }
+
+    private void createRoleSpecificEntity(User user, String affiliation) {
+        if (user.getRole() == Role.ETUDIANT) {
+            Etudiant etudiant = new Etudiant();
+            etudiant.setNom(user.getNom());
+            etudiant.setEmail(user.getEmail());
+            etudiant.setPassword(user.getPassword());
+            etudiant.setDateInscription(new java.util.Date());
+            if (affiliation != null && affiliation.contains(" - ")) {
+                String[] parts = affiliation.split(" - ");
+                if (parts.length > 1) {
+                    etudiant.setFiliere(parts[1]);
+                }
+            }
+            etudiantRepository.save(etudiant);
+        } else if (user.getRole() == Role.ALUMNI) {
+            Alumni alumni = new Alumni();
+            alumni.setNom(user.getNom());
+            alumni.setEmail(user.getEmail());
+            alumni.setPassword(user.getPassword());
+            alumni.setDisponibleMentorat(false);
+            if (affiliation != null && affiliation.contains(" - ")) {
+                String[] parts = affiliation.split(" - ");
+                if (parts.length > 1) {
+                    alumni.setDomaine(parts[1]);
+                }
+            }
+            alumniRepository.save(alumni);
+        }
+    }
+
+    private String generateTemporaryPassword() {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+        StringBuilder password = new StringBuilder();
+        java.util.Random random = new java.util.Random();
+        for (int i = 0; i < 12; i++) {
+            password.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return password.toString();
     }
 }
