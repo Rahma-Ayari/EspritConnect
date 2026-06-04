@@ -1,5 +1,7 @@
 package tn.esprit.espritconnect2.DTO;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.Lob;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -7,11 +9,15 @@ import lombok.*;
  * DTO reçu depuis le client lors de la création ou modification d'un profil.
  * On n'expose pas les relations (etudiant, alumni, etc.) ici → trop complexe et inutile.
  * Le client envoie uniquement les champs simples du profil.
+ *
+ * @JsonIgnoreProperties → ignore les champs inconnus envoyés par le frontend
+ *                         (ex: idProfil, typeProprietaire) pour éviter les erreurs Jackson.
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ProfilRequestDTO {
 
     // Identifiant métier lié à l'utilisateur (ex: email ou ID externe)
