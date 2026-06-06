@@ -10,8 +10,10 @@ import java.util.UUID;
 
 public interface IModerationService {
     ModerationReportDTO submitReport(ModerationReportRequestDTO request, UUID reporterId);
+    List<ModerationReportDTO> getMyReports(UUID reporterId);
     List<ModerationReportDTO> getAllReports();
     List<ModerationReportDTO> getReportsByStatus(ModerationStatus status);
     ModerationReportDTO getReport(Long id);
+    ModerationReportDTO getMyReport(Long id, UUID reporterId);
     ModerationReportDTO reviewReport(Long id, ModerationReviewRequestDTO review, UUID moderatorId);
 }

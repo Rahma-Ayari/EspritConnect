@@ -131,6 +131,32 @@ public class FrontSupportController {
         return ResponseEntity.ok(supportService.voteOnFAQ(id, helpful));
     }
 
+    @PostMapping("/faqs/community")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FAQDTO> submitCommunityFaq(
+            @RequestBody FAQRequestDTO request,
+            @RequestParam(required = false) UUID authorId) {
+        return new ResponseEntity<>(
+                supportService.submitCommunityFaq(request, SecurityUtils.getCurrentUserIdOr(authorId)),
+                HttpStatus.CREATED);
+    }
+
+    @GetMapping("/faqs/{id}/comments")
+    public ResponseEntity<List<FaqCommentDTO>> getFaqComments(@PathVariable Long id) {
+        return ResponseEntity.ok(supportService.getFaqComments(id));
+    }
+
+    @PostMapping("/faqs/{id}/comments")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FaqCommentDTO> addFaqComment(
+            @PathVariable Long id,
+            @RequestBody FaqCommentRequestDTO request,
+            @RequestParam(required = false) UUID authorId) {
+        return new ResponseEntity<>(
+                supportService.addFaqComment(id, request, SecurityUtils.getCurrentUserIdOr(authorId)),
+                HttpStatus.CREATED);
+    }
+
     @PostMapping("/chatbot/ask")
     public ResponseEntity<Map<String, Object>> askChatbot(@RequestBody ChatbotRequestDTO request) {
         String message = request != null ? request.getMessage() : null;

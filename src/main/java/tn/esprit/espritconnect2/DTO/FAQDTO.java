@@ -17,6 +17,8 @@ public class FAQDTO {
     private Long categoryId;
     private String categoryName;
 
+    private String authorName;
+
     private boolean isImportant;
     private int viewCount;
     private int helpfulCount;

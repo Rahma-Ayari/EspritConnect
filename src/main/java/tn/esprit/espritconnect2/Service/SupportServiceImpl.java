@@ -24,6 +24,7 @@ public class SupportServiceImpl implements ISupportService {
     private final TicketCategoryRepository categoryRepository;
     private final TicketMessageRepository messageRepository;
     private final FAQRepository faqRepository;
+    private final FaqCommentRepository faqCommentRepository;
     private final UserRepository userRepository;
     private final TicketHistoryRepository historyRepository;
     private final NotificationRepository notificationRepository;
@@ -415,6 +416,54 @@ public class SupportServiceImpl implements ISupportService {
 
     @Override
     @Transactional
+    public FAQDTO submitCommunityFaq(FAQRequestDTO req, UUID authorId) {
+        User author = userRepository.findById(authorId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        TicketCategory cat = req.getCategoryId() != null
+                ? categoryRepository.findById(req.getCategoryId()).orElse(null)
+                : null;
+
+        FAQ faq = FAQ.builder()
+                .question(req.getQuestion())
+                .answer(req.getAnswer())
+                .category(cat)
+                .author(author)
+                .isImportant(false)
+                .build();
+        return mapToDTO(faqRepository.save(faq));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FaqCommentDTO> getFaqComments(Long faqId) {
+        if (!faqRepository.existsById(faqId)) {
+            throw new NotFoundException("FAQ not found");
+        }
+        return faqCommentRepository.findByFaqIdOrderByCreatedAtAsc(faqId).stream()
+                .map(this::mapCommentToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public FaqCommentDTO addFaqComment(Long faqId, FaqCommentRequestDTO req, UUID authorId) {
+        FAQ faq = faqRepository.findById(faqId).orElseThrow(() -> new NotFoundException("FAQ not found"));
+        User author = userRepository.findById(authorId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        if (req.getContent() == null || req.getContent().trim().isEmpty()) {
+            throw new tn.esprit.espritconnect2.Exception.BusinessRuleException("Comment cannot be empty.");
+        }
+
+        FaqComment comment = FaqComment.builder()
+                .faq(faq)
+                .author(author)
+                .content(req.getContent().trim())
+                .build();
+        return mapCommentToDTO(faqCommentRepository.save(comment));
+    }
+
+    @Override
+    @Transactional
     public void seedData() {
         if (categoryRepository.count() > 0) {
             if (faqRepository.count() >= 5) {
@@ -724,12 +773,24 @@ public class SupportServiceImpl implements ISupportService {
                 .answer(faq.getAnswer())
                 .categoryId(faq.getCategory() != null ? faq.getCategory().getId() : null)
                 .categoryName(faq.getCategory() != null ? faq.getCategory().getName() : null)
+                .authorName(faq.getAuthor() != null ? faq.getAuthor().getNom() : null)
                 .isImportant(faq.isImportant())
                 .viewCount(faq.getViewCount())
                 .helpfulCount(faq.getHelpfulCount())
                 .notHelpfulCount(faq.getNotHelpfulCount())
                 .createdAt(faq.getCreatedAt())
                 .updatedAt(faq.getUpdatedAt())
+                .build();
+    }
+
+    private FaqCommentDTO mapCommentToDTO(FaqComment comment) {
+        return FaqCommentDTO.builder()
+                .id(comment.getId())
+                .faqId(comment.getFaq().getId())
+                .authorId(comment.getAuthor().getId())
+                .authorName(comment.getAuthor().getNom())
+                .content(comment.getContent())
+                .createdAt(comment.getCreatedAt())
                 .build();
     }
 
@@ -747,22 +808,29 @@ public class SupportServiceImpl implements ISupportService {
             return response;
         }
 
-        List<FAQ> matchedFaqs = faqRetrievalService.findRelevantFaqs(message, chatbotProperties.getMaxFaqsContext());
-        String knowledgeContext = faqRetrievalService.buildKnowledgeContext(matchedFaqs);
+        try {
+            List<FAQ> matchedFaqs = faqRetrievalService.findRelevantFaqs(message, chatbotProperties.getMaxFaqsContext());
+            String knowledgeContext = faqRetrievalService.buildKnowledgeContext(matchedFaqs);
 
-        String aiReply = chatbotAiService.generateReply(message.trim(), knowledgeContext, safeHistory);
-        boolean aiPowered = aiReply != null && !aiReply.isBlank();
+            String aiReply = chatbotAiService.generateReply(message.trim(), knowledgeContext, safeHistory);
+            boolean aiPowered = aiReply != null && !aiReply.isBlank();
 
-        String finalReply = aiPowered
-                ? aiReply
-                : chatbotAiService.buildFallbackReply(message.trim(), matchedFaqs);
+            String finalReply = aiPowered
+                    ? aiReply
+                    : chatbotAiService.buildFallbackReply(message.trim(), matchedFaqs);
 
-        boolean ticketSuggest = chatbotAiService.shouldSuggestTicket(message.trim(), finalReply);
+            boolean ticketSuggest = chatbotAiService.shouldSuggestTicket(message.trim(), finalReply);
 
-        response.put("response", finalReply);
-        response.put("suggestedFaqs", matchedFaqs.stream().map(this::mapToDTO).collect(Collectors.toList()));
-        response.put("ticketSuggest", ticketSuggest);
-        response.put("aiPowered", aiPowered);
+            response.put("response", finalReply);
+            response.put("suggestedFaqs", matchedFaqs.stream().map(this::mapToDTO).collect(Collectors.toList()));
+            response.put("ticketSuggest", ticketSuggest);
+            response.put("aiPowered", aiPowered);
+        } catch (Exception e) {
+            response.put("response", chatbotAiService.buildFallbackReply(message.trim(), List.of()));
+            response.put("suggestedFaqs", List.of());
+            response.put("ticketSuggest", false);
+            response.put("aiPowered", false);
+        }
         return response;
     }
 }

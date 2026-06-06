@@ -27,6 +27,11 @@ public class FAQ {
     @JoinColumn(name = "category_id")
     private TicketCategory category;
 
+    @ManyToOne
+    @JoinColumn(name = "author_id")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
+    private User author;
+
     @Builder.Default
     @Column(nullable = false)
     private boolean isImportant = false;

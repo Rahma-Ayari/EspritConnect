@@ -62,6 +62,13 @@ public class ModerationServiceImpl implements IModerationService {
     }
 
     @Override
+    public List<ModerationReportDTO> getMyReports(UUID reporterId) {
+        return moderationReportRepository.findByReporterIdOrderByCreatedAtDesc(reporterId).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<ModerationReportDTO> getAllReports() {
         return moderationReportRepository.findAll().stream()
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
@@ -80,6 +87,16 @@ public class ModerationServiceImpl implements IModerationService {
     public ModerationReportDTO getReport(Long id) {
         return mapToDTO(moderationReportRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Moderation report not found")));
+    }
+
+    @Override
+    public ModerationReportDTO getMyReport(Long id, UUID reporterId) {
+        ModerationReport report = moderationReportRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Moderation report not found"));
+        if (report.getReporter() == null || !report.getReporter().getId().equals(reporterId)) {
+            throw new tn.esprit.espritconnect2.Exception.BusinessRuleException("You can only view your own reports.");
+        }
+        return mapToDTO(report);
     }
 
     @Override

@@ -65,7 +65,7 @@ public class ChatbotAiService {
 
     private final ChatbotProperties properties;
     private final RestClient chatbotRestClient;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public boolean isConfigured() {
         return buildProviderChain().stream().anyMatch(ChatbotProviderConfig::isReady);
@@ -200,7 +200,7 @@ public class ChatbotAiService {
         }
 
         if (!matchedFaqs.isEmpty()) {
-            FAQ best = matchedFaqs.getFirst();
+            FAQ best = matchedFaqs.get(0);
             StringBuilder sb = new StringBuilder();
             sb.append(best.getAnswer());
             if (matchedFaqs.size() > 1) {

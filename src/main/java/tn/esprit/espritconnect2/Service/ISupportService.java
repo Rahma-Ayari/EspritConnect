@@ -38,6 +38,9 @@ public interface ISupportService {
     FAQDTO incrementFAQView(Long id);
     FAQDTO voteOnFAQ(Long id, boolean helpful);
     FAQDTO markFAQImportant(Long id, boolean important);
+    FAQDTO submitCommunityFaq(FAQRequestDTO req, UUID authorId);
+    List<FaqCommentDTO> getFaqComments(Long faqId);
+    FaqCommentDTO addFaqComment(Long faqId, FaqCommentRequestDTO req, UUID authorId);
     void seedData();
 
     // Additional Support Capability Methods

@@ -11,6 +11,7 @@ import tn.esprit.espritconnect2.DTO.ModerationReportRequestDTO;
 import tn.esprit.espritconnect2.Service.IModerationService;
 import tn.esprit.espritconnect2.security.SecurityUtils;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -31,5 +32,22 @@ public class FrontModerationController {
         return new ResponseEntity<>(
                 moderationService.submitReport(request, SecurityUtils.getCurrentUserIdOr(reporterId)),
                 HttpStatus.CREATED);
+    }
+
+    @GetMapping("/reports/my")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ModerationReportDTO>> getMyReports(
+            @RequestParam(required = false) UUID reporterId) {
+        return ResponseEntity.ok(
+                moderationService.getMyReports(SecurityUtils.getCurrentUserIdOr(reporterId)));
+    }
+
+    @GetMapping("/reports/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ModerationReportDTO> getMyReport(
+            @PathVariable Long id,
+            @RequestParam(required = false) UUID reporterId) {
+        return ResponseEntity.ok(
+                moderationService.getMyReport(id, SecurityUtils.getCurrentUserIdOr(reporterId)));
     }
 }
