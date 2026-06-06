@@ -4,23 +4,23 @@
 
 USE EspritConnect2;
 
--- Option A — promote an account you already registered via POST /api/auth/register
--- (keeps the password you chose at register)
--- UPDATE users
--- SET enabled = 1,
---     inscription_refusee = 0,
---     status = 'ACCEPTEE',
---     role = 'ADMIN'
--- WHERE email = 'dev.admin@esprit.tn';
+-- VERIFY ADMIN STATUS AND PASSWORD
+-- Check if admin exists with correct status:
+SELECT id, email, enabled, status, inscription_refusee, role 
+FROM users 
+WHERE email = 'admin@esprit.tn';
 
--- Option B — fix existing dev.admin row (wrong password or still disabled)
-UPDATE users
+-- If admin exists but needs fixing, run:
+UPDATE users 
 SET password = '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
     enabled = 1,
     inscription_refusee = 0,
     status = 'ACCEPTEE',
     role = 'ADMIN'
-WHERE email = 'dev.admin@esprit.tn';
+WHERE email = 'admin@esprit.tn';
+
+-- Verify column exists (run if getting column errors):
+-- ALTER TABLE users ADD COLUMN inscription_refusee bit(1) NOT NULL DEFAULT 0;
 
 -- Option C — insert if email does not exist yet
 INSERT INTO users (
