@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import tn.esprit.espritconnect2.Entitie.Type;
 
+import java.util.List;
+
 @Getter @Setter @AllArgsConstructor @NoArgsConstructor @Builder
 public class OffreRequestDTO {
     @NotBlank(message = "Le titre est obligatoire")
@@ -17,6 +19,10 @@ public class OffreRequestDTO {
     private Type typeOffre;
 
     private String localisation;
+
+    private String domaine;
+
+    private List<String> competencesRequises;
 
     @NotNull(message = "L'ID de l'entreprise est obligatoire")
     private Long entrepriseId;

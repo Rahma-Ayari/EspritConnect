@@ -4,7 +4,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import tn.esprit.espritconnect2.DTO.CandidatureApplyMeDTO;
 import tn.esprit.espritconnect2.DTO.CandidatureRequestDTO;
 import tn.esprit.espritconnect2.DTO.CandidatureResponseDTO;
 import tn.esprit.espritconnect2.DTO.CandidatureStatusUpdateDTO;
@@ -23,6 +26,14 @@ public class CandidatureController {
     @PostMapping
     public ResponseEntity<CandidatureResponseDTO> create(@Valid @RequestBody CandidatureRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(candidatureService.create(dto));
+    }
+
+    @PostMapping("/me")
+    public ResponseEntity<CandidatureResponseDTO> applyAsCurrentUser(
+            @Valid @RequestBody CandidatureApplyMeDTO dto) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(candidatureService.createForEmail(auth.getName(), dto));
     }
 
     @GetMapping("/student/{studentId}")

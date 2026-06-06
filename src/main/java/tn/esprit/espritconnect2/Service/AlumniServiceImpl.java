@@ -73,6 +73,8 @@ public class AlumniServiceImpl implements IAlumniService {
                 .email(saved.getEmail())
                 .password(saved.getPassword())
                 .role(Role.ALUMNI)
+                .enabled(false)
+                .inscriptionRefusee(false)
                 .build());
 
         return toDTO(saved);
@@ -86,6 +88,12 @@ public class AlumniServiceImpl implements IAlumniService {
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    public AlumniResponseDTO getAlumniByEmail(String email) {
+        Alumni alumni = alumniRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Alumni introuvable pour cet email"));
+        return toDTO(alumni);
     }
 
     // READ BY ID

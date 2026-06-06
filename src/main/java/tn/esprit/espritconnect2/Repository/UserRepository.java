@@ -11,6 +11,8 @@ import tn.esprit.espritconnect2.Entitie.Status;
 import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Entitie.VerificationStatus;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +25,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findByEnabledFalse();
     Page<User> findByEnabledFalse(Pageable pageable);
     long countByEnabledFalse();
+
+    long countByEnabledFalseAndInscriptionRefuseeFalseAndRoleIn(Collection<Role> roles);
+
+    List<User> findByEnabledFalseAndInscriptionRefuseeFalseAndRoleInOrderByCreatedAtDesc(Collection<Role> roles);
+
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = :role AND u.enabled = true AND u.inscriptionRefusee = false " +
+           "AND u.createdAt >= :start AND u.createdAt < :end")
+    long countApprovedByRoleAndCreatedAtBetween(
+            @Param("role") Role role,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 
     // Pending users by status EN_ATTENTE (correct filtering)
     List<User> findByStatus(Status status);
