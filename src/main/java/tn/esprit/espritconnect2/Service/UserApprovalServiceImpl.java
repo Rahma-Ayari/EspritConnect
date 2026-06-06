@@ -85,6 +85,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
             toAutoApprove.forEach(u -> {
                 u.setEnabled(true);
                 u.setStatus(Status.ACCEPTEE);
+                if (u.getRole() == Role.ENTREPRISE) {
+                    u.setVerificationStatus(tn.esprit.espritconnect2.Entitie.VerificationStatus.VERIFIED);
+                    if (u.getVerifiedAt() == null) {
+                        u.setVerifiedAt(java.time.LocalDateTime.now());
+                        u.setVerifiedBy("Auto Approved");
+                    }
+                }
                 emailService.sendApprovalNotification(u);
             });
             userRepository.saveAll(toAutoApprove);
@@ -103,6 +110,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
         
         user.setEnabled(true);
         user.setStatus(Status.ACCEPTEE);
+        if (user.getRole() == Role.ENTREPRISE) {
+            user.setVerificationStatus(tn.esprit.espritconnect2.Entitie.VerificationStatus.VERIFIED);
+            if (user.getVerifiedAt() == null) {
+                user.setVerifiedAt(java.time.LocalDateTime.now());
+                user.setVerifiedBy("Admin");
+            }
+        }
         User savedUser = userRepository.save(user);
         
         emailService.sendApprovalNotification(savedUser);
@@ -137,6 +151,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
         users.forEach(user -> {
             user.setEnabled(true);
             user.setStatus(Status.ACCEPTEE);
+            if (user.getRole() == Role.ENTREPRISE) {
+                user.setVerificationStatus(tn.esprit.espritconnect2.Entitie.VerificationStatus.VERIFIED);
+                if (user.getVerifiedAt() == null) {
+                    user.setVerifiedAt(java.time.LocalDateTime.now());
+                    user.setVerifiedBy("Admin Bulk");
+                }
+            }
         });
         List<User> savedUsers = userRepository.saveAll(users);
         

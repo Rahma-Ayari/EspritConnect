@@ -90,6 +90,18 @@ public class EnterpriseVerificationController {
     @PreAuthorize("hasRole('ENTREPRISE')")
     public ResponseEntity<EnterpriseVerificationDTO> getMyVerificationStatus(Authentication authentication) {
         User user = getCurrentUser(authentication);
+        
+        // Synchronisation automatique si l'admin a accepté l'utilisateur via le panel User Management
+        if (user.getStatus() == tn.esprit.espritconnect2.Entitie.Status.ACCEPTEE && 
+            user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            user.setVerificationStatus(VerificationStatus.VERIFIED);
+            if (user.getVerifiedAt() == null) {
+                user.setVerifiedAt(LocalDateTime.now());
+                user.setVerifiedBy("System Sync");
+            }
+            userRepository.save(user);
+        }
+        
         return ResponseEntity.ok(toDTO(user));
     }
 
@@ -197,6 +209,15 @@ public class EnterpriseVerificationController {
         enterprise.setVerificationNotes(request.getNotes());
         enterprise.setVerifiedAt(LocalDateTime.now());
         enterprise.setVerifiedBy(admin.getNom());
+        
+        // Synchroniser le statut de compte global avec le statut de vérification
+        if (request.getStatus() == VerificationStatus.VERIFIED) {
+            enterprise.setStatus(tn.esprit.espritconnect2.Entitie.Status.ACCEPTEE);
+            enterprise.setEnabled(true);
+        } else if (request.getStatus() == VerificationStatus.REJECTED) {
+            enterprise.setStatus(tn.esprit.espritconnect2.Entitie.Status.REFUSEE);
+            enterprise.setEnabled(false);
+        }
         
         userRepository.save(enterprise);
         

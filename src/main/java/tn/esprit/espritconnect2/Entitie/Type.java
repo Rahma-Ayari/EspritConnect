@@ -1,8 +1,12 @@
 package tn.esprit.espritconnect2.Entitie;
 
 public enum Type {
-     STAGE,EMPLOI,PORTFOLIO,CV;
-
+    STAGE,
+    EMPLOI,
+    APPRENTISSAGE,
+    PFE,
+    PORTFOLIO,
+    CV
 }
 
 

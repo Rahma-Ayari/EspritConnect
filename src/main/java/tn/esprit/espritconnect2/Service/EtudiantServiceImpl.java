@@ -69,6 +69,8 @@ public class EtudiantServiceImpl {
                 .email(saved.getEmail())
                 .password(saved.getPassword())
                 .role(Role.ETUDIANT)
+                .enabled(false)
+                .inscriptionRefusee(false)
                 .build());
 
         return toDTO(saved);
@@ -80,6 +82,12 @@ public class EtudiantServiceImpl {
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    public EtudiantResponseDTO getEtudiantByEmail(String email) {
+        Etudiant etudiant = etudiantRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Etudiant introuvable pour cet email"));
+        return toDTO(etudiant);
     }
 
     // ─── READ BY ID ───────────────────────────────────────────────────────────
