@@ -43,17 +43,21 @@ public class Profil {
     @JsonIgnore
     private List<Notification> notifications;
     @OneToOne(mappedBy = "profil")
+    @JsonIgnore
     private Etudiant etudiant;
 
     @OneToOne(mappedBy = "profil")
+    @JsonIgnore
     private Alumni alumni;
 
     @OneToOne(mappedBy = "profil")
+    @JsonIgnore
     private Entreprise entreprise;
 
     @ManyToOne
     private AICareerAssistant aiCareerAssistant;
 
     @OneToOne(mappedBy = "profil")
+    @JsonIgnore
     private Administrateur administrateur;
 }
