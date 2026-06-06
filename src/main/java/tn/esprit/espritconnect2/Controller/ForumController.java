@@ -82,8 +82,9 @@ public class ForumController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String authorRole,
             @RequestParam(required = false) Boolean reported,
-            @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(forumService.getFilteredPosts(categoryId, authorRole, reported, search));
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long groupId) {
+        return ResponseEntity.ok(forumService.getFilteredPosts(categoryId, authorRole, reported, search, groupId));
     }
 
     @GetMapping("/posts/{id}")

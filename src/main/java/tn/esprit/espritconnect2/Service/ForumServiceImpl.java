@@ -18,6 +18,8 @@ public class ForumServiceImpl implements ForumService {
     private final ForumCategoryRepository categoryRepository;
     private final ForumPostRepository postRepository;
     private final ForumReplyRepository replyRepository;
+    private final ForumGroupRepository groupRepository;
+    private final ForumGroupMemberRepository groupMemberRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -72,7 +74,7 @@ public class ForumServiceImpl implements ForumService {
 
     @Override
     @Transactional
-    public List<ForumPost> getFilteredPosts(Long categoryId, String authorRole, Boolean reported, String search) {
+    public List<ForumPost> getFilteredPosts(Long categoryId, String authorRole, Boolean reported, String search, Long groupId) {
         Role role = null;
         if (authorRole != null && !authorRole.trim().isEmpty()) {
             try {
@@ -82,7 +84,7 @@ public class ForumServiceImpl implements ForumService {
             }
         }
         String searchQuery = (search != null && !search.trim().isEmpty()) ? search : null;
-        return postRepository.filterPosts(categoryId, role, reported, searchQuery);
+        return postRepository.filterPosts(categoryId, role, reported, searchQuery, groupId);
     }
 
     @Override
@@ -107,6 +109,23 @@ public class ForumServiceImpl implements ForumService {
         post.setViewsCount(0);
         post.setPinned(false);
         post.setReported(false);
+
+        if (post.getForumGroup() != null && post.getForumGroup().getId() != null) {
+            ForumGroup group = groupRepository.findById(post.getForumGroup().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Groupe introuvable."));
+            if (group.getStatus() != GroupStatus.ACTIVE) {
+                throw new IllegalArgumentException("Ce groupe n'est pas actif.");
+            }
+            // Vérifier si l'utilisateur est membre approuvé
+            boolean isMember = groupMemberRepository.existsByGroupIdAndUserEmailAndStatus(
+                    group.getId(), post.getAuthorEmail(), MemberStatus.APPROVED
+            );
+            if (!isMember) {
+                throw new IllegalArgumentException("Vous devez être membre approuvé de ce groupe pour y publier.");
+            }
+            post.setForumGroup(group);
+        }
+
         return postRepository.save(post);
     }
 
@@ -252,6 +271,118 @@ public class ForumServiceImpl implements ForumService {
     @PostConstruct
     @Transactional
     public void seedForumData() {
+        // Seeding des Groupes et adhésions si inexistant
+        if (groupRepository.count() == 0) {
+            // 1. Groupes en attente de validation (Modération Admin)
+            groupRepository.save(ForumGroup.builder()
+                    .name("Club IA & Data Science Esprit")
+                    .description("Communauté d'apprentissage et de partage de projets autour du Deep Learning, NLP et Computer Vision.")
+                    .creatorEmail("etudiant.demo@esprit.tn")
+                    .creatorName("Étudiant Demo")
+                    .isPrivate(true)
+                    .status(GroupStatus.PENDING)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+
+            groupRepository.save(ForumGroup.builder()
+                    .name("ESPRIT Alumni à l'International")
+                    .description("Réseau d'entraide pour la recherche de postes et l'intégration des diplômés ESPRIT à l'étranger.")
+                    .creatorEmail("alumni.demo@esprit.tn")
+                    .creatorName("Alumni Demo")
+                    .isPrivate(false)
+                    .status(GroupStatus.PENDING)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+
+            groupRepository.save(ForumGroup.builder()
+                    .name("Esprit E-Sports & Gaming")
+                    .description("Organisation des tournois internes et compétitions universitaires d'E-Sports.")
+                    .creatorEmail("firas.ghorbel@esprit.tn")
+                    .creatorName("Firas Ghorbel")
+                    .isPrivate(false)
+                    .status(GroupStatus.PENDING)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+
+            // 2. Groupes actifs avec demandes de membres en attente (Modération Créateur/Owner)
+            ForumGroup cyberGroup = groupRepository.save(ForumGroup.builder()
+                    .name("Club Cybersécurité Esprit")
+                    .description("Discussions, partages de Write-ups de CTF et ateliers pratiques de Pentesting.")
+                    .creatorEmail("etudiant.demo@esprit.tn")
+                    .creatorName("Étudiant Demo")
+                    .isPrivate(true)
+                    .status(GroupStatus.ACTIVE)
+                    .createdAt(LocalDateTime.now().minusDays(5))
+                    .build());
+
+            // Propriétaire approuvé
+            groupMemberRepository.save(ForumGroupMember.builder()
+                    .group(cyberGroup)
+                    .userEmail("etudiant.demo@esprit.tn")
+                    .userName("Étudiant Demo")
+                    .role(GroupRole.OWNER)
+                    .status(MemberStatus.APPROVED)
+                    .joinedAt(LocalDateTime.now().minusDays(5))
+                    .build());
+
+            // Demandes de membres en attente
+            groupMemberRepository.save(ForumGroupMember.builder()
+                    .group(cyberGroup)
+                    .userEmail("alumni.demo@esprit.tn")
+                    .userName("Alumni Demo")
+                    .role(GroupRole.MEMBER)
+                    .status(MemberStatus.PENDING)
+                    .joinedAt(LocalDateTime.now().minusDays(1))
+                    .build());
+
+            groupMemberRepository.save(ForumGroupMember.builder()
+                    .group(cyberGroup)
+                    .userEmail("yasmine.ayari@esprit.tn")
+                    .userName("Yasmine Ayari")
+                    .role(GroupRole.MEMBER)
+                    .status(MemberStatus.PENDING)
+                    .joinedAt(LocalDateTime.now().minusHours(4))
+                    .build());
+
+            groupMemberRepository.save(ForumGroupMember.builder()
+                    .group(cyberGroup)
+                    .userEmail("ahmed.mansour@esprit.tn")
+                    .userName("Ahmed Mansour")
+                    .role(GroupRole.MEMBER)
+                    .status(MemberStatus.PENDING)
+                    .joinedAt(LocalDateTime.now().minusHours(2))
+                    .build());
+
+            // Autre groupe actif pour tester l'autre rôle
+            ForumGroup cloudGroup = groupRepository.save(ForumGroup.builder()
+                    .name("DevOps & Cloud Computing")
+                    .description("Communauté autour de AWS, Azure, Docker, Kubernetes et pipelines CI/CD.")
+                    .creatorEmail("alumni.demo@esprit.tn")
+                    .creatorName("Alumni Demo")
+                    .isPrivate(true)
+                    .status(GroupStatus.ACTIVE)
+                    .createdAt(LocalDateTime.now().minusDays(10))
+                    .build());
+
+            groupMemberRepository.save(ForumGroupMember.builder()
+                    .group(cloudGroup)
+                    .userEmail("alumni.demo@esprit.tn")
+                    .userName("Alumni Demo")
+                    .role(GroupRole.OWNER)
+                    .status(MemberStatus.APPROVED)
+                    .joinedAt(LocalDateTime.now().minusDays(10))
+                    .build());
+
+            groupMemberRepository.save(ForumGroupMember.builder()
+                    .group(cloudGroup)
+                    .userEmail("etudiant.demo@esprit.tn")
+                    .userName("Étudiant Demo")
+                    .role(GroupRole.MEMBER)
+                    .status(MemberStatus.PENDING)
+                    .joinedAt(LocalDateTime.now().minusDays(2))
+                    .build());
+        }
+
         if (categoryRepository.count() > 0) {
             return; // Des données existent déjà, pas de seeding.
         }
@@ -389,5 +520,196 @@ public class ForumServiceImpl implements ForumService {
                 .reported(true)
                 .reportReason("Publicité / Spam commercial indésirable")
                 .build());
+
+    }
+
+    // ==========================================
+    //            GROUPS IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    @Transactional
+    public ForumGroup createGroup(ForumGroup group) {
+        if (group.getName() == null || group.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Le nom du groupe est obligatoire.");
+        }
+        if (groupRepository.findAll().stream().anyMatch(g -> g.getName().equalsIgnoreCase(group.getName().trim()))) {
+            throw new IllegalArgumentException("Un groupe avec ce nom existe déjà.");
+        }
+        group.setStatus(GroupStatus.PENDING);
+        ForumGroup savedGroup = groupRepository.save(group);
+
+        // Rejoindre automatiquement le créateur en tant que OWNER et APPROVED
+        ForumGroupMember creatorMember = ForumGroupMember.builder()
+                .group(savedGroup)
+                .userEmail(group.getCreatorEmail())
+                .userName(group.getCreatorName())
+                .role(GroupRole.OWNER)
+                .status(MemberStatus.APPROVED)
+                .joinedAt(LocalDateTime.now())
+                .build();
+        groupMemberRepository.save(creatorMember);
+
+        return savedGroup;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ForumGroup> getActiveGroups() {
+        return groupRepository.findByStatus(GroupStatus.ACTIVE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ForumGroup> getPendingGroups() {
+        return groupRepository.findByStatus(GroupStatus.PENDING);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ForumGroup> getMyGroups(String userEmail) {
+        return groupMemberRepository.findByUserEmailAndStatus(userEmail, MemberStatus.APPROVED)
+                .stream()
+                .map(ForumGroupMember::getGroup)
+                .filter(g -> g.getStatus() == GroupStatus.ACTIVE)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public ForumGroup approveGroup(Long groupId) {
+        ForumGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Groupe introuvable."));
+        if (group.getStatus() != GroupStatus.PENDING) {
+            throw new IllegalArgumentException("Le groupe n'est pas en attente d'approbation.");
+        }
+        group.setStatus(GroupStatus.ACTIVE);
+        return groupRepository.save(group);
+    }
+
+    @Override
+    @Transactional
+    public ForumGroup rejectGroup(Long groupId) {
+        ForumGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Groupe introuvable."));
+        if (group.getStatus() != GroupStatus.PENDING) {
+            throw new IllegalArgumentException("Le groupe n'est pas en attente d'approbation.");
+        }
+        group.setStatus(GroupStatus.REJECTED);
+        return groupRepository.save(group);
+    }
+
+    @Override
+    @Transactional
+    public ForumGroupMember requestJoinGroup(Long groupId, String userEmail, String userName) {
+        ForumGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Groupe introuvable."));
+        if (group.getStatus() != GroupStatus.ACTIVE) {
+            throw new IllegalArgumentException("Ce groupe n'est pas actif.");
+        }
+
+        Optional<ForumGroupMember> existingOpt = groupMemberRepository.findByGroupIdAndUserEmail(groupId, userEmail);
+        if (existingOpt.isPresent()) {
+            ForumGroupMember existing = existingOpt.get();
+            if (existing.getStatus() == MemberStatus.APPROVED) {
+                throw new IllegalArgumentException("Vous êtes déjà membre de ce groupe.");
+            } else if (existing.getStatus() == MemberStatus.PENDING) {
+                throw new IllegalArgumentException("Votre demande d'adhésion est déjà en attente.");
+            } else {
+                existing.setStatus(group.isPrivate() ? MemberStatus.PENDING : MemberStatus.APPROVED);
+                existing.setJoinedAt(LocalDateTime.now());
+                return groupMemberRepository.save(existing);
+            }
+        }
+
+        MemberStatus initialStatus = group.isPrivate() ? MemberStatus.PENDING : MemberStatus.APPROVED;
+        ForumGroupMember member = ForumGroupMember.builder()
+                .group(group)
+                .userEmail(userEmail)
+                .userName(userName)
+                .role(GroupRole.MEMBER)
+                .status(initialStatus)
+                .joinedAt(LocalDateTime.now())
+                .build();
+
+        return groupMemberRepository.save(member);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ForumGroupMember> getPendingMemberships(Long groupId, String currentUserEmail) {
+        ForumGroupMember requester = groupMemberRepository.findByGroupIdAndUserEmail(groupId, currentUserEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Accès refusé. Vous n'êtes pas membre de ce groupe."));
+        if (requester.getRole() != GroupRole.OWNER && requester.getRole() != GroupRole.MODERATOR) {
+            throw new IllegalArgumentException("Accès refusé. Vous devez être modérateur ou propriétaire.");
+        }
+        return groupMemberRepository.findByGroupIdAndStatus(groupId, MemberStatus.PENDING);
+    }
+
+    @Override
+    @Transactional
+    public ForumGroupMember approveMembership(Long groupId, Long memberId, String currentUserEmail) {
+        ForumGroupMember requester = groupMemberRepository.findByGroupIdAndUserEmail(groupId, currentUserEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Accès refusé."));
+        if (requester.getRole() != GroupRole.OWNER && requester.getRole() != GroupRole.MODERATOR) {
+            throw new IllegalArgumentException("Accès refusé. Permission insuffisante.");
+        }
+
+        ForumGroupMember member = groupMemberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("Demande d'adhésion introuvable."));
+        if (!member.getGroup().getId().equals(groupId)) {
+            throw new IllegalArgumentException("Le membre ne correspond pas au groupe spécifié.");
+        }
+        member.setStatus(MemberStatus.APPROVED);
+        member.setJoinedAt(LocalDateTime.now());
+        return groupMemberRepository.save(member);
+    }
+
+    @Override
+    @Transactional
+    public ForumGroupMember rejectMembership(Long groupId, Long memberId, String currentUserEmail) {
+        ForumGroupMember requester = groupMemberRepository.findByGroupIdAndUserEmail(groupId, currentUserEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Accès refusé."));
+        if (requester.getRole() != GroupRole.OWNER && requester.getRole() != GroupRole.MODERATOR) {
+            throw new IllegalArgumentException("Accès refusé. Permission insuffisante.");
+        }
+
+        ForumGroupMember member = groupMemberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("Demande d'adhésion introuvable."));
+        if (!member.getGroup().getId().equals(groupId)) {
+            throw new IllegalArgumentException("Le membre ne correspond pas au groupe spécifié.");
+        }
+        member.setStatus(MemberStatus.REJECTED);
+        return groupMemberRepository.save(member);
+    }
+
+    @Override
+    @Transactional
+    public void leaveGroup(Long groupId, String userEmail) {
+        ForumGroupMember member = groupMemberRepository.findByGroupIdAndUserEmail(groupId, userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Vous n'êtes pas membre de ce groupe."));
+        if (member.getRole() == GroupRole.OWNER) {
+            throw new IllegalArgumentException("Le propriétaire ne peut pas quitter le groupe sans d'abord transférer la propriété.");
+        }
+        groupMemberRepository.delete(member);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ForumGroupMember> getGroupMembers(Long groupId) {
+        return groupMemberRepository.findByGroupIdAndStatus(groupId, MemberStatus.APPROVED);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ForumGroup getGroupById(Long groupId) {
+        return groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Groupe introuvable avec l'ID: " + groupId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ForumGroupMember> getUserMemberships(String userEmail) {
+        return groupMemberRepository.findByUserEmail(userEmail);
     }
 }

@@ -59,6 +59,10 @@ public class ForumPost {
     @JsonIgnoreProperties("post")
     private List<ForumReply> replies = new ArrayList<>();
 
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "group_id")
+    private ForumGroup forumGroup;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

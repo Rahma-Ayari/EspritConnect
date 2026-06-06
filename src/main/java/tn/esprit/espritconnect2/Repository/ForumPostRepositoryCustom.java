@@ -6,7 +6,7 @@ import tn.esprit.espritconnect2.Entitie.Role;
 import java.util.List;
 
 public interface ForumPostRepositoryCustom {
-    List<ForumPost> filterPosts(Long categoryId, Role authorRole, Boolean reported, String search);
+    List<ForumPost> filterPosts(Long categoryId, Role authorRole, Boolean reported, String search, Long groupId);
 
     List<ForumPost> filterPublicPosts(Long categoryId, Role authorRole, String search, String authorEmail);
 }

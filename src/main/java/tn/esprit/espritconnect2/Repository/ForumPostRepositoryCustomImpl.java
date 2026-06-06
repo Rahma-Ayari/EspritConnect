@@ -14,7 +14,7 @@ public class ForumPostRepositoryCustomImpl implements ForumPostRepositoryCustom 
     private EntityManager entityManager;
 
     @Override
-    public List<ForumPost> filterPosts(Long categoryId, Role authorRole, Boolean reported, String search) {
+    public List<ForumPost> filterPosts(Long categoryId, Role authorRole, Boolean reported, String search, Long groupId) {
 
         StringBuilder jpql = new StringBuilder("SELECT p FROM ForumPost p WHERE 1=1");
 
@@ -28,7 +28,12 @@ public class ForumPostRepositoryCustomImpl implements ForumPostRepositoryCustom 
             jpql.append(" AND p.reported = :reported");
         }
         if (search != null && !search.isBlank()) {
-            jpql.append(" AND (p.title LIKE :search OR p.content LIKE :search)");
+            jpql.append(" AND (LOWER(p.title) LIKE :search OR LOWER(p.content) LIKE :search)");
+        }
+        if (groupId != null) {
+            jpql.append(" AND p.forumGroup.id = :groupId");
+        } else if (reported == null || !reported) {
+            jpql.append(" AND p.forumGroup IS NULL");
         }
 
         jpql.append(" ORDER BY p.pinned DESC, p.createdAt DESC");
@@ -46,6 +51,9 @@ public class ForumPostRepositoryCustomImpl implements ForumPostRepositoryCustom 
         }
         if (search != null && !search.isBlank()) {
             query.setParameter("search", "%" + search.toLowerCase() + "%");
+        }
+        if (groupId != null) {
+            query.setParameter("groupId", groupId);
         }
 
         return query.getResultList();
