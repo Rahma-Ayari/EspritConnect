@@ -30,4 +30,5 @@ public class JobOfferDTO {
     private Boolean isArchived;
     private Long entrepriseId;
     private String companyName;
+    private String createdAt;
 }

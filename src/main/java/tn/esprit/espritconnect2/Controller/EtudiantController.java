@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.espritconnect2.DTO.EtudiantRequestDTO;
 import tn.esprit.espritconnect2.DTO.EtudiantResponseDTO;
@@ -35,6 +37,12 @@ public class EtudiantController {
     @GetMapping
     public ResponseEntity<List<EtudiantResponseDTO>> getAll() {
         return ResponseEntity.ok(etudiantService.getAllEtudiants());
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<EtudiantResponseDTO> getMe() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return ResponseEntity.ok(etudiantService.getEtudiantByEmail(auth.getName()));
     }
 
     // GET /api/etudiants/{id}

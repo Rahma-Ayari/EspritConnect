@@ -4,5 +4,7 @@ public enum VerificationStatus {
     NOT_SUBMITTED,
     PENDING,
     VERIFIED,
-    REJECTED
+    REJECTED,
+    DOCUMENTS_REQUIRED,
+    PENDING_REVIEW
 }

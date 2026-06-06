@@ -113,7 +113,13 @@ public class JobOfferService {
     // Create job
     @Transactional
     public JobOfferDTO createJob(JobOfferDTO dto) {
+        if (dto.getEntrepriseId() == null) {
+            throw new IllegalArgumentException("Entreprise requise pour publier une offre");
+        }
         Offre offre = convertToEntity(dto);
+        if (offre.getEntreprise() == null) {
+            throw new IllegalArgumentException("Entreprise introuvable. Reconnectez-vous ou contactez le support.");
+        }
         offre.setDatePublication(new Date());
         offre.setIsArchived(false);
         offre.setIsPinned(false);
@@ -291,6 +297,9 @@ public class JobOfferService {
             dto.setEntrepriseId(offre.getEntreprise().getIdEntreprise());
             dto.setCompanyName(offre.getEntreprise().getNom());
         }
+        if (offre.getDatePublication() != null) {
+            dto.setCreatedAt(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(offre.getDatePublication()));
+        }
         return dto;
     }
 
@@ -340,7 +349,7 @@ public class JobOfferService {
         
         if (dto.getEntrepriseId() != null) {
             Entreprise entreprise = entrepriseRepository.findById(dto.getEntrepriseId())
-                .orElse(null);
+                .orElseThrow(() -> new IllegalArgumentException("Entreprise introuvable avec l'identifiant fourni"));
             offre.setEntreprise(entreprise);
         }
     }

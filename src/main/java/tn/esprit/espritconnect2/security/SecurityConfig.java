@@ -60,6 +60,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/offres/**").permitAll()
                 .requestMatchers("/api/matchings/**").permitAll()
                 .requestMatchers("/api/candidatures/**").permitAll()
+                .requestMatchers("/api/etudiants/me", "/api/alumni/me").authenticated()
                 .requestMatchers("/api/entreprises/*/job-dashboard").permitAll()
                 .requestMatchers("/api/entreprises/*/verification/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/entreprises/*").permitAll()

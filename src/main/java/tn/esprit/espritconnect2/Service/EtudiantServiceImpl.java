@@ -84,6 +84,12 @@ public class EtudiantServiceImpl {
                 .collect(Collectors.toList());
     }
 
+    public EtudiantResponseDTO getEtudiantByEmail(String email) {
+        Etudiant etudiant = etudiantRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Etudiant introuvable pour cet email"));
+        return toDTO(etudiant);
+    }
+
     // ─── READ BY ID ───────────────────────────────────────────────────────────
     public EtudiantResponseDTO getEtudiantById(Long id) {
         Etudiant etudiant = etudiantRepository.findById(id)

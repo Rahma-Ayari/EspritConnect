@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.espritconnect2.DTO.*;
 import tn.esprit.espritconnect2.Service.EntrepriseJobDashboardService;
@@ -29,6 +31,16 @@ public class EntrepriseController {
     @GetMapping
     public ResponseEntity<List<EntrepriseResponseDTO>> getAll() {
         return ResponseEntity.ok(entrepriseService.getAllEntreprises());
+    }
+
+    /** Logged-in enterprise account (resolved by JWT email). */
+    @GetMapping("/me")
+    public ResponseEntity<EntrepriseResponseDTO> getCurrentEntreprise() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(entrepriseService.getEntrepriseByEmail(auth.getName()));
     }
 
     @GetMapping("/{id}")

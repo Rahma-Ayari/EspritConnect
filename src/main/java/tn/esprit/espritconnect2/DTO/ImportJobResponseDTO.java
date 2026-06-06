@@ -8,6 +8,7 @@ import java.util.Map;
 public class ImportJobResponseDTO {
     private String title;
     private String description;
+    private String responsibilities;
     private List<String> skills;
     private String requirements;
     private String location;
