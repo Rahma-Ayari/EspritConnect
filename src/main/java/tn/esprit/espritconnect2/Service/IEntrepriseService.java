@@ -9,6 +9,7 @@ public interface IEntrepriseService {
     EntrepriseResponseDTO createEntreprise(EntrepriseRequestDTO dto);
     List<EntrepriseResponseDTO> getAllEntreprises();
     EntrepriseResponseDTO getEntrepriseById(Long id);
+    EntrepriseResponseDTO getEntrepriseByEmail(String email);
     EntrepriseResponseDTO updateEntreprise(Long id, EntrepriseRequestDTO dto);
     void deleteEntreprise(Long id);
 }

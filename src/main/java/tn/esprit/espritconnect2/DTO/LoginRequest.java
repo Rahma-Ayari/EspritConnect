@@ -17,4 +17,6 @@ public class LoginRequest {
     @NotBlank(message = "Le mot de passe est requis")
     @Size(min = 6, message = "Minimum 6 caractères")
     private String password;
+
+    private String deviceToken;
 }

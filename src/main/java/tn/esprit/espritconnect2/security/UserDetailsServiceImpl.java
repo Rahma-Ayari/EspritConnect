@@ -11,6 +11,7 @@ import tn.esprit.espritconnect2.Entitie.Role;
 import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Repository.EtudiantRepository;
 import tn.esprit.espritconnect2.Repository.UserRepository;
+import tn.esprit.espritconnect2.Service.ApprovalSettingsService;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +19,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final EtudiantRepository etudiantRepository;
+    private final ApprovalSettingsService approvalSettingsService;
 
     @Override
     @Transactional

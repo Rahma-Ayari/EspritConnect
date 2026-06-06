@@ -3,6 +3,8 @@ package tn.esprit.espritconnect2.Controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.espritconnect2.DTO.AlumniRequestDTO;
 import tn.esprit.espritconnect2.DTO.AlumniResponseDTO;
@@ -31,6 +33,12 @@ public class AlumniController {
     public ResponseEntity<List<AlumniResponseDTO>> getAll() {
 
         return ResponseEntity.ok(alumniService.getAllAlumni());
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<AlumniResponseDTO> getMe() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return ResponseEntity.ok(alumniService.getAlumniByEmail(auth.getName()));
     }
 
     @GetMapping("/{id}")

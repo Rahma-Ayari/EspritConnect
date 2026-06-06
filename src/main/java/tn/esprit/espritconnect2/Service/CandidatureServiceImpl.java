@@ -2,6 +2,7 @@ package tn.esprit.espritconnect2.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import tn.esprit.espritconnect2.DTO.CandidatureApplyMeDTO;
 import tn.esprit.espritconnect2.DTO.CandidatureRequestDTO;
 import tn.esprit.espritconnect2.DTO.CandidatureResponseDTO;
 import tn.esprit.espritconnect2.Entitie.Candidature;
@@ -48,6 +49,18 @@ public class CandidatureServiceImpl implements ICandidatureService {
         candidature.setOffre(offre);
 
         return toDTO(candidatureRepository.save(candidature));
+    }
+
+    @Override
+    public CandidatureResponseDTO createForEmail(String email, CandidatureApplyMeDTO dto) {
+        Etudiant etudiant = etudiantRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessRuleException(
+                        "Student profile not found. Job applications are available for student accounts."));
+        CandidatureRequestDTO request = new CandidatureRequestDTO();
+        request.setEtudiantId(etudiant.getIdEtudiant());
+        request.setOffreId(dto.getOffreId());
+        request.setLettreMotivation(dto.getLettreMotivation());
+        return create(request);
     }
 
     @Override
@@ -104,6 +117,9 @@ public class CandidatureServiceImpl implements ICandidatureService {
                 .scoreMatch(c.getScoreMatch())
                 .etudiantId(c.getEtudiant() != null ? c.getEtudiant().getIdEtudiant() : null)
                 .offreId(c.getOffre() != null ? c.getOffre().getIdOffre() : null)
+                .jobTitle(c.getOffre() != null ? c.getOffre().getTitre() : null)
+                .companyName(c.getOffre() != null && c.getOffre().getEntreprise() != null
+                        ? c.getOffre().getEntreprise().getNom() : null)
                 .fichierId(c.getFichier() != null ? c.getFichier().getIdFichier() : null)
                 .build();
     }

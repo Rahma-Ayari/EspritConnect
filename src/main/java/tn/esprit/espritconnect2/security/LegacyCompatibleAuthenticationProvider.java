@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Repository.EtudiantRepository;
 import tn.esprit.espritconnect2.Repository.UserRepository;
+import tn.esprit.espritconnect2.exception.EmailNotVerifiedException;
 
 /**
  * Valide email/mot de passe comme DaoAuthenticationProvider, mais :
@@ -67,6 +68,10 @@ public class LegacyCompatibleAuthenticationProvider implements AuthenticationPro
                 etudiantRepository.save(e);
             });
         }
+        if (user.requiresEmailVerification() && !user.isEmailVerified()) {
+            throw new EmailNotVerifiedException();
+        }
+
         if (!user.isEnabled()) {
             throw new DisabledException("Votre compte est en attente de validation par l'administrateur.");
         }

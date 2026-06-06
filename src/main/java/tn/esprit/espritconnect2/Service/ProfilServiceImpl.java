@@ -5,9 +5,16 @@ import org.springframework.stereotype.Service;
 import tn.esprit.espritconnect2.DTO.ProfilRequestDTO;
 import tn.esprit.espritconnect2.DTO.ProfilResponseDTO;
 import tn.esprit.espritconnect2.Entitie.Profil;
+import tn.esprit.espritconnect2.Entitie.User;
+import tn.esprit.espritconnect2.Entitie.Etudiant;
+import tn.esprit.espritconnect2.Entitie.Alumni;
 import tn.esprit.espritconnect2.Repository.ProfilRepository;
+import tn.esprit.espritconnect2.Repository.UserRepository;
+import tn.esprit.espritconnect2.Repository.EtudiantRepository;
+import tn.esprit.espritconnect2.Repository.AlumniRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -21,6 +28,9 @@ import java.util.stream.Collectors;
 public class ProfilServiceImpl implements IProfilService {
 
     private final ProfilRepository profilRepository;
+    private final UserRepository userRepository;
+    private final EtudiantRepository etudiantRepository;
+    private final AlumniRepository alumniRepository;
 
     // ─── Mapper DTO → Entité ──────────────────────────────────────────────────
     /**
@@ -35,6 +45,16 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setLienLinkedIn(dto.getLienLinkedIn());
         profil.setBio(dto.getBio());
         profil.setLienGitHub(dto.getLienGitHub());
+        profil.setPrenom(dto.getPrenom());
+        profil.setTelephone(dto.getTelephone());
+        profil.setAdresse(dto.getAdresse());
+        profil.setVille(dto.getVille());
+        profil.setPays(dto.getPays());
+        profil.setCodePostal(dto.getCodePostal());
+        profil.setSiteWeb(dto.getSiteWeb());
+        profil.setDateNaissance(dto.getDateNaissance());
+        profil.setGenre(dto.getGenre());
+        profil.setNomProprietaire(dto.getNomProprietaire());
         return profil;
     }
 
@@ -47,23 +67,94 @@ public class ProfilServiceImpl implements IProfilService {
     private ProfilResponseDTO toDTO(Profil profil) {
 
         // Déterminer dynamiquement le propriétaire du profil
-        String nomProprietaire = "Inconnu";
+        String nomProprietaire = profil.getNomProprietaire(); // Priorité au nom stocké dans le profil
         String typeProprietaire = "INCONNU";
+        String prenom = profil.getPrenom();
 
+        String niveau = null;
+        String filiere = null;
+        Integer anneePromotion = null;
+        String domaine = null;
+        Boolean disponibleMentorat = null;
+        String entrepriseActuelle = null;
+        String registreCommerce = null;
+        String secteurActivite = null;
+        String descriptionEntreprise = null;
+
+        // Chercher l'utilisateur par email (userId) pour récupérer ses informations d'inscription
+        Optional<User> userOpt = userRepository.findByEmail(profil.getUserId());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            
+            // Séparer nom et prénom à partir du nom complet d'inscription si non renseigné dans le profil
+            String fullName = user.getNom();
+            if (fullName != null && fullName.contains(" ")) {
+                int lastSpaceIndex = fullName.lastIndexOf(" ");
+                String parsedPrenom = fullName.substring(0, lastSpaceIndex).trim();
+                String parsedNom = fullName.substring(lastSpaceIndex + 1).trim();
+                if (prenom == null || prenom.isEmpty()) {
+                    prenom = parsedPrenom;
+                }
+                if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire) || "Utilisateur".equals(nomProprietaire)) {
+                    nomProprietaire = parsedNom;
+                }
+            } else {
+                if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire) || "Utilisateur".equals(nomProprietaire)) {
+                    nomProprietaire = fullName;
+                }
+            }
+            
+            typeProprietaire = user.getRole().name();
+            
+            if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ETUDIANT) {
+                Optional<Etudiant> etudiantOpt = etudiantRepository.findByEmail(user.getEmail());
+                if (etudiantOpt.isPresent()) {
+                    Etudiant etudiant = etudiantOpt.get();
+                    niveau = etudiant.getNiveau() != null ? etudiant.getNiveau().name() : null;
+                    filiere = etudiant.getFiliere();
+                }
+            } else if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ALUMNI) {
+                Optional<Alumni> alumniOpt = alumniRepository.findByEmail(user.getEmail());
+                if (alumniOpt.isPresent()) {
+                    Alumni alumni = alumniOpt.get();
+                    anneePromotion = alumni.getAnneePromotion();
+                    domaine = alumni.getDomaine();
+                    disponibleMentorat = alumni.getDisponibleMentorat();
+                    entrepriseActuelle = alumni.getEntrepriseActuelle();
+                }
+            } else if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ENTREPRISE) {
+                registreCommerce = user.getBusinessRegistrationNumber();
+                secteurActivite = user.getCompanySector();
+                descriptionEntreprise = user.getCompanyDescription();
+            }
+        }
+
+        // Fallbacks pour relations si direct mapping a échoué
         if (profil.getEtudiant() != null) {
-            nomProprietaire = profil.getEtudiant().getNom();
             typeProprietaire = "ETUDIANT";
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getEtudiant().getNom();
+            }
+            niveau = profil.getEtudiant().getNiveau() != null ? profil.getEtudiant().getNiveau().name() : null;
+            filiere = profil.getEtudiant().getFiliere();
         } else if (profil.getAlumni() != null) {
-            // Adapter selon les champs de ton entité Alumni
-            nomProprietaire = profil.getAlumni().getNom();
             typeProprietaire = "ALUMNI";
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getAlumni().getNom();
+            }
+            anneePromotion = profil.getAlumni().getAnneePromotion();
+            domaine = profil.getAlumni().getDomaine();
+            disponibleMentorat = profil.getAlumni().getDisponibleMentorat();
+            entrepriseActuelle = profil.getAlumni().getEntrepriseActuelle();
         } else if (profil.getEntreprise() != null) {
-            // Adapter selon les champs de ton entité Entreprise
-            nomProprietaire = profil.getEntreprise().getNom();
             typeProprietaire = "ENTREPRISE";
-        } else if (profil.getAdministrateur() != null) {
-            nomProprietaire = profil.getAdministrateur().getNom();
-            typeProprietaire = "ADMINISTRATEUR";
+            if (nomProprietaire == null || nomProprietaire.isEmpty() || "Inconnu".equals(nomProprietaire)) {
+                nomProprietaire = profil.getEntreprise().getNom();
+            }
+        }
+
+        if (nomProprietaire == null || nomProprietaire.isEmpty()) {
+            nomProprietaire = "Inconnu";
         }
 
         return ProfilResponseDTO.builder()
@@ -73,9 +164,92 @@ public class ProfilServiceImpl implements IProfilService {
                 .lienLinkedIn(profil.getLienLinkedIn())
                 .bio(profil.getBio())
                 .lienGitHub(profil.getLienGitHub())
+                .prenom(prenom)
+                .telephone(profil.getTelephone())
+                .adresse(profil.getAdresse())
+                .ville(profil.getVille())
+                .pays(profil.getPays())
+                .codePostal(profil.getCodePostal())
+                .siteWeb(profil.getSiteWeb())
+                .dateNaissance(profil.getDateNaissance())
+                .genre(profil.getGenre())
                 .nomProprietaire(nomProprietaire)
                 .typeProprietaire(typeProprietaire)
+                .niveau(niveau)
+                .filiere(filiere)
+                .anneePromotion(anneePromotion)
+                .domaine(domaine)
+                .disponibleMentorat(disponibleMentorat)
+                .entrepriseActuelle(entrepriseActuelle)
+                .registreCommerce(registreCommerce)
+                .secteurActivite(secteurActivite)
+                .descriptionEntreprise(descriptionEntreprise)
                 .build();
+    }
+
+    private void updateRegistrationFields(String email, ProfilRequestDTO dto) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            
+            // Sync name if Prenom and Nom are provided
+            if (dto.getPrenom() != null && dto.getNomProprietaire() != null) {
+                user.setNom(dto.getPrenom().trim() + " " + dto.getNomProprietaire().trim());
+            }
+            
+            if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ETUDIANT) {
+                Optional<Etudiant> etudiantOpt = etudiantRepository.findByEmail(email);
+                if (etudiantOpt.isPresent()) {
+                    Etudiant etudiant = etudiantOpt.get();
+                    if (dto.getPrenom() != null && dto.getNomProprietaire() != null) {
+                        etudiant.setNom(dto.getPrenom().trim() + " " + dto.getNomProprietaire().trim());
+                    }
+                    if (dto.getNiveau() != null && !dto.getNiveau().isEmpty()) {
+                        try {
+                            etudiant.setNiveau(tn.esprit.espritconnect2.Entitie.Niveau.valueOf(dto.getNiveau()));
+                        } catch (Exception e) {
+                            // ignore
+                        }
+                    }
+                    if (dto.getFiliere() != null) {
+                        etudiant.setFiliere(dto.getFiliere());
+                    }
+                    etudiantRepository.save(etudiant);
+                }
+            } else if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ALUMNI) {
+                Optional<Alumni> alumniOpt = alumniRepository.findByEmail(email);
+                if (alumniOpt.isPresent()) {
+                    Alumni alumni = alumniOpt.get();
+                    if (dto.getPrenom() != null && dto.getNomProprietaire() != null) {
+                        alumni.setNom(dto.getPrenom().trim() + " " + dto.getNomProprietaire().trim());
+                    }
+                    if (dto.getAnneePromotion() != null) {
+                        alumni.setAnneePromotion(dto.getAnneePromotion());
+                    }
+                    if (dto.getDomaine() != null) {
+                        alumni.setDomaine(dto.getDomaine());
+                    }
+                    if (dto.getDisponibleMentorat() != null) {
+                        alumni.setDisponibleMentorat(dto.getDisponibleMentorat());
+                    }
+                    if (dto.getEntrepriseActuelle() != null) {
+                        alumni.setEntrepriseActuelle(dto.getEntrepriseActuelle());
+                    }
+                    alumniRepository.save(alumni);
+                }
+            } else if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ENTREPRISE) {
+                if (dto.getRegistreCommerce() != null) {
+                    user.setBusinessRegistrationNumber(dto.getRegistreCommerce());
+                }
+                if (dto.getSecteurActivite() != null) {
+                    user.setCompanySector(dto.getSecteurActivite());
+                }
+                if (dto.getDescriptionEntreprise() != null) {
+                    user.setCompanyDescription(dto.getDescriptionEntreprise());
+                }
+            }
+            userRepository.save(user);
+        }
     }
 
     // ─── CREATE ──────────────────────────────────────────────────────────────
@@ -85,6 +259,8 @@ public class ProfilServiceImpl implements IProfilService {
         if (dto.getUserId() != null && profilRepository.existsByUserId(dto.getUserId())) {
             throw new RuntimeException("Un profil avec ce userId existe déjà : " + dto.getUserId());
         }
+
+        updateRegistrationFields(dto.getUserId(), dto);
 
         Profil profil = toEntity(dto);
         Profil saved = profilRepository.save(profil);
@@ -116,6 +292,80 @@ public class ProfilServiceImpl implements IProfilService {
         return toDTO(profil);
     }
 
+    // ─── READ CURRENT USER PROFILE ─────────────────────────────────────────────
+    @Override
+    public ProfilResponseDTO getCurrentUserProfile(String email) {
+        Profil profil = profilRepository.findByUserId(email)
+                .orElse(null);
+        if (profil == null) {
+            String nom = "Utilisateur";
+            String prenom = "";
+            String role = "INCONNU";
+            
+            String niveau = null;
+            String filiere = null;
+            Integer anneePromotion = null;
+            String domaine = null;
+            Boolean disponibleMentorat = null;
+            String entrepriseActuelle = null;
+            String registreCommerce = null;
+            String secteurActivite = null;
+            String descriptionEntreprise = null;
+            
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                String fullName = user.getNom();
+                if (fullName != null && fullName.contains(" ")) {
+                    int lastSpaceIndex = fullName.lastIndexOf(" ");
+                    prenom = fullName.substring(0, lastSpaceIndex).trim();
+                    nom = fullName.substring(lastSpaceIndex + 1).trim();
+                } else {
+                    nom = fullName;
+                }
+                role = user.getRole().name();
+                
+                if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ETUDIANT) {
+                    Optional<Etudiant> etudiantOpt = etudiantRepository.findByEmail(user.getEmail());
+                    if (etudiantOpt.isPresent()) {
+                        Etudiant etudiant = etudiantOpt.get();
+                        niveau = etudiant.getNiveau() != null ? etudiant.getNiveau().name() : null;
+                        filiere = etudiant.getFiliere();
+                    }
+                } else if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ALUMNI) {
+                    Optional<Alumni> alumniOpt = alumniRepository.findByEmail(user.getEmail());
+                    if (alumniOpt.isPresent()) {
+                        Alumni alumni = alumniOpt.get();
+                        anneePromotion = alumni.getAnneePromotion();
+                        domaine = alumni.getDomaine();
+                        disponibleMentorat = alumni.getDisponibleMentorat();
+                        entrepriseActuelle = alumni.getEntrepriseActuelle();
+                    }
+                } else if (user.getRole() == tn.esprit.espritconnect2.Entitie.Role.ENTREPRISE) {
+                    registreCommerce = user.getBusinessRegistrationNumber();
+                    secteurActivite = user.getCompanySector();
+                    descriptionEntreprise = user.getCompanyDescription();
+                }
+            }
+            return ProfilResponseDTO.builder()
+                    .userId(email)
+                    .nomProprietaire(nom)
+                    .prenom(prenom)
+                    .typeProprietaire(role)
+                    .niveau(niveau)
+                    .filiere(filiere)
+                    .anneePromotion(anneePromotion)
+                    .domaine(domaine)
+                    .disponibleMentorat(disponibleMentorat)
+                    .entrepriseActuelle(entrepriseActuelle)
+                    .registreCommerce(registreCommerce)
+                    .secteurActivite(secteurActivite)
+                    .descriptionEntreprise(descriptionEntreprise)
+                    .build();
+        }
+        return toDTO(profil);
+    }
+
     // ─── UPDATE ───────────────────────────────────────────────────────────────
     @Override
     public ProfilResponseDTO updateProfil(Long id, ProfilRequestDTO dto) {
@@ -129,6 +379,8 @@ public class ProfilServiceImpl implements IProfilService {
             throw new RuntimeException("Ce userId est déjà utilisé : " + dto.getUserId());
         }
 
+        updateRegistrationFields(dto.getUserId(), dto);
+
         // Mise à jour uniquement des champs simples
         // Les relations (etudiant, alumni...) ne sont PAS modifiées ici
         profil.setUserId(dto.getUserId());
@@ -136,6 +388,16 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setLienLinkedIn(dto.getLienLinkedIn());
         profil.setBio(dto.getBio());
         profil.setLienGitHub(dto.getLienGitHub());
+        profil.setPrenom(dto.getPrenom());
+        profil.setTelephone(dto.getTelephone());
+        profil.setAdresse(dto.getAdresse());
+        profil.setVille(dto.getVille());
+        profil.setPays(dto.getPays());
+        profil.setCodePostal(dto.getCodePostal());
+        profil.setSiteWeb(dto.getSiteWeb());
+        profil.setDateNaissance(dto.getDateNaissance());
+        profil.setGenre(dto.getGenre());
+        profil.setNomProprietaire(dto.getNomProprietaire());
 
         return toDTO(profilRepository.save(profil));
     }

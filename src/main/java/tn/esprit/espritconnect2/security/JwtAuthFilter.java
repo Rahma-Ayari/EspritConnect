@@ -33,6 +33,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (token != null) {
             try {
+                if (jwtUtils.isMfaPendingToken(token)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 String username = jwtUtils.extractUsername(token);
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);

@@ -2,12 +2,15 @@ package tn.esprit.espritconnect2.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import tn.esprit.espritconnect2.DTO.CandidateMatchDTO;
 import tn.esprit.espritconnect2.DTO.MatchingResponseDTO;
+import tn.esprit.espritconnect2.Entitie.Candidature;
 import tn.esprit.espritconnect2.Entitie.Competence;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
 import tn.esprit.espritconnect2.Entitie.Matching;
 import tn.esprit.espritconnect2.Entitie.Offre;
 import tn.esprit.espritconnect2.Exception.NotFoundException;
+import tn.esprit.espritconnect2.Repository.CandidatureRepository;
 import tn.esprit.espritconnect2.Repository.EtudiantRepository;
 import tn.esprit.espritconnect2.Repository.MatchingRepository;
 import tn.esprit.espritconnect2.Repository.OffreRepository;
@@ -27,6 +30,7 @@ public class MatchingServiceImpl implements IMatchingService {
     private final MatchingRepository matchingRepository;
     private final EtudiantRepository etudiantRepository;
     private final OffreRepository offreRepository;
+    private final CandidatureRepository candidatureRepository;
 
     @Override
     public MatchingResponseDTO computeMatching(Long etudiantId, Long offreId) {
@@ -43,7 +47,7 @@ public class MatchingServiceImpl implements IMatchingService {
                 .filter(s -> !s.isBlank())
                 .collect(Collectors.toSet());
 
-        Set<String> offerKeywords = extractKeywords(offre.getTitre() + " " + offre.getDescription());
+        Set<String> offerKeywords = extractKeywords(buildOfferText(offre));
 
         List<String> missingSkills = offerKeywords.stream()
                 .filter(k -> !studentSkills.contains(k))
@@ -110,6 +114,71 @@ public class MatchingServiceImpl implements IMatchingService {
                 .toList();
     }
 
+    @Override
+    public List<CandidateMatchDTO> getRankedCandidatesForOffre(Long offreId, int limit) {
+        if (!offreRepository.existsById(offreId)) {
+            throw new NotFoundException("Offre introuvable avec id: " + offreId);
+        }
+        int safeLimit = Math.max(limit, 1);
+        List<Candidature> candidatures = candidatureRepository.findByOffreIdOffre(offreId);
+        if (candidatures.isEmpty()) {
+            return List.of();
+        }
+
+        List<CandidateMatchDTO> ranked = new ArrayList<>();
+        for (Candidature candidature : candidatures) {
+            Etudiant etudiant = candidature.getEtudiant();
+            if (etudiant == null) {
+                continue;
+            }
+            MatchingResponseDTO match = computeMatching(etudiant.getIdEtudiant(), offreId);
+            candidature.setScoreMatch(match.getScoreCompatibilite());
+            candidatureRepository.save(candidature);
+
+            Set<String> offerKeywords = extractKeywords(buildOfferText(offreRepository.findById(offreId).orElseThrow()));
+            Set<String> studentSkills = etudiant.getCompetences() == null ? Set.of() : etudiant.getCompetences().stream()
+                    .map(Competence::getLibelle)
+                    .map(this::normalize)
+                    .filter(s -> !s.isBlank())
+                    .collect(Collectors.toSet());
+            List<String> matched = offerKeywords.stream().filter(studentSkills::contains).sorted().toList();
+
+            ranked.add(CandidateMatchDTO.builder()
+                    .candidatureId(candidature.getId())
+                    .etudiantId(etudiant.getIdEtudiant())
+                    .etudiantNom(etudiant.getNom())
+                    .etudiantEmail(etudiant.getEmail())
+                    .filiere(etudiant.getFiliere())
+                    .niveau(etudiant.getNiveau() != null ? etudiant.getNiveau().name() : null)
+                    .scoreCompatibilite(match.getScoreCompatibilite())
+                    .skillsMatched(matched)
+                    .recommandations(match.getRecommandations())
+                    .lettreMotivationExcerpt(excerpt(candidature.getLettreMotivation()))
+                    .hasResume(candidature.getFichier() != null)
+                    .candidatureStatus(candidature.getStatutCandidature())
+                    .build());
+        }
+
+        ranked.sort((a, b) -> Float.compare(
+                b.getScoreCompatibilite() != null ? b.getScoreCompatibilite() : 0F,
+                a.getScoreCompatibilite() != null ? a.getScoreCompatibilite() : 0F
+        ));
+        return ranked.stream().limit(safeLimit).toList();
+    }
+
+    private String buildOfferText(Offre offre) {
+        String skills = offre.getCompetencesRequises() == null ? "" : String.join(" ", offre.getCompetencesRequises());
+        return offre.getTitre() + " " + offre.getDescription() + " " + skills + " " + (offre.getDomaine() != null ? offre.getDomaine() : "");
+    }
+
+    private String excerpt(String text) {
+        if (text == null || text.isBlank()) {
+            return "Aucune lettre de motivation.";
+        }
+        String trimmed = text.trim();
+        return trimmed.length() <= 160 ? trimmed : trimmed.substring(0, 157) + "...";
+    }
+
     private float calculateScore(Set<String> studentSkills, Set<String> offerKeywords, Etudiant etudiant, Offre offre) {
         if (offerKeywords.isEmpty()) {
             return 50F;
@@ -119,16 +188,32 @@ public class MatchingServiceImpl implements IMatchingService {
         float skillsScore = (float) overlap / offerKeywords.size();
 
         float filiereBonus = 0F;
-        if (etudiant.getFiliere() != null && offre.getDescription() != null &&
-                offre.getDescription().toLowerCase(Locale.ROOT).contains(etudiant.getFiliere().toLowerCase(Locale.ROOT))) {
+        String offerText = buildOfferText(offre).toLowerCase(Locale.ROOT);
+        if (etudiant.getFiliere() != null && offerText.contains(etudiant.getFiliere().toLowerCase(Locale.ROOT))) {
             filiereBonus = 0.1F;
+        }
+
+        float motivationBonus = 0F;
+        String motivation = candidatureRepository.findByEtudiantIdEtudiantAndOffreIdOffre(
+                        etudiant.getIdEtudiant(), offre.getIdOffre())
+                .map(Candidature::getLettreMotivation)
+                .orElse("");
+        if (!motivation.isBlank()) {
+            long motOverlap = offerKeywords.stream()
+                    .filter(k -> motivation.toLowerCase(Locale.ROOT).contains(k))
+                    .count();
+            if (!offerKeywords.isEmpty()) {
+                motivationBonus = Math.min(0.15F, (float) motOverlap / offerKeywords.size() * 0.15F);
+            } else {
+                motivationBonus = 0.05F;
+            }
         }
 
         float readiness = etudiant.getScoreReadiness() == null
                 ? 0.5F
                 : Math.min(etudiant.getScoreReadiness(), 100) / 100F;
 
-        float total = (skillsScore * 0.6F) + (readiness * 0.3F) + (filiereBonus * 0.1F);
+        float total = (skillsScore * 0.55F) + (readiness * 0.25F) + (filiereBonus * 0.1F) + (motivationBonus * 0.1F);
         return Math.min(100F, Math.max(0F, total * 100F));
     }
 

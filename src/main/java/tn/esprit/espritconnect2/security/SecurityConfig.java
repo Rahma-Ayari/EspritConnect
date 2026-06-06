@@ -87,71 +87,32 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/", "/error").permitAll()
 
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
-
-                .requestMatchers("/api/auth/**").permitAll()
-
+                .requestMatchers(
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/verify-2fa-login",
+                        "/api/auth/register-enterprise",
+                        "/api/auth/verify-email",
+                        "/api/auth/resend-verification-email"
+                ).permitAll()
+                .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers("/api/offres/public/**").permitAll()
 
                 .requestMatchers("/api/evenements/upcoming").permitAll()
-
-
-
-                // --- Frontoffice (public help + authenticated users) ---
-
-                .requestMatchers(HttpMethod.GET,
-
-                        ApiOfficePaths.FRONT_SUPPORT + "/faqs/**",
-
-                        ApiOfficePaths.FRONT_SUPPORT + "/tickets/categories",
-
-                        ApiOfficePaths.FRONT_SUPPORT + "/files/**").permitAll()
-
-                .requestMatchers(HttpMethod.POST,
-
-                        ApiOfficePaths.FRONT_SUPPORT + "/chatbot/ask",
-
-                        ApiOfficePaths.FRONT_SUPPORT + "/faqs/*/view").permitAll()
-
-                .requestMatchers(ApiOfficePaths.FRONT + "/**").authenticated()
-
-
-
-                // --- Backoffice (admins only) ---
-
-                .requestMatchers(ApiOfficePaths.BACK + "/**").hasRole("ADMIN")
-
-                .requestMatchers("/api/admins/**").hasRole("ADMIN")
-
-
-
-                // --- Legacy aliases (migrate Angular to /api/front & /api/back) ---
-
-                .requestMatchers(HttpMethod.GET,
-
-                        "/api/support/faqs/**",
-
-                        "/api/support/tickets/categories",
-
-                        "/api/support/files/**").permitAll()
-
-                .requestMatchers(HttpMethod.POST,
-
-                        "/api/support/chatbot/ask",
-
-                        "/api/support/faqs/*/view").permitAll()
-
-                .requestMatchers("/api/support/**", "/api/moderation/**").authenticated()
-
+                .requestMatchers("/api/admin/dashboard/**").permitAll()
+                .requestMatchers("/api/admin/settings/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/registration/settings").permitAll()
+                // DEV: open job APIs while building entreprise job dashboard (tighten before prod)
+                .requestMatchers("/api/offres/**").permitAll()
+                .requestMatchers("/api/matchings/**").permitAll()
+                .requestMatchers("/api/candidatures/**").permitAll()
+                .requestMatchers("/api/etudiants/me", "/api/alumni/me").authenticated()
+                .requestMatchers("/api/entreprises/*/job-dashboard").permitAll()
+                .requestMatchers("/api/entreprises/*/verification/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/entreprises/*").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-
-
-
-                .requestMatchers("/actuator/health", "/actuator/info",
-
-                        ApiOfficePaths.BACK_MONITORING + "/health").permitAll()
-
-                .requestMatchers("/actuator/**").hasRole("ADMIN")
-
+                // Public self-registration: create company without JWT (pending admin approval).
+                .requestMatchers(HttpMethod.POST, "/api/entreprises").permitAll()
                 .requestMatchers("/api/entreprises/**").hasAnyRole("ENTREPRISE", "ADMIN")
 
                 .anyRequest().authenticated()

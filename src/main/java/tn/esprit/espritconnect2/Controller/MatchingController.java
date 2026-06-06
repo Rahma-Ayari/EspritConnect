@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import tn.esprit.espritconnect2.DTO.CandidateMatchDTO;
 import tn.esprit.espritconnect2.DTO.MatchingComputeRequestDTO;
 import tn.esprit.espritconnect2.DTO.MatchingResponseDTO;
 import tn.esprit.espritconnect2.Service.IMatchingService;
@@ -38,5 +39,12 @@ public class MatchingController {
             @PathVariable Long offreId,
             @RequestParam(defaultValue = "5") int limit) {
         return ResponseEntity.ok(matchingService.getTopByOffre(offreId, limit));
+    }
+
+    @GetMapping("/offre/{offreId}/candidates")
+    public ResponseEntity<List<CandidateMatchDTO>> getRankedCandidates(
+            @PathVariable Long offreId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(matchingService.getRankedCandidatesForOffre(offreId, limit));
     }
 }
