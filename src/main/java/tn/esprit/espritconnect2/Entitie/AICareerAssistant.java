@@ -1,5 +1,6 @@
 package tn.esprit.espritconnect2.Entitie;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -40,5 +41,6 @@ public class AICareerAssistant {
     private Float scorePrecision;
 
     @OneToMany(mappedBy = "aiCareerAssistant")
+    @JsonIgnore
     private List<Profil> profils;
 }

@@ -1,5 +1,6 @@
 HELP.md
 target/
+run.log
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -34,3 +35,9 @@ build/
 
 ### Uploaded files (user documents - confidential) ###
 uploads/
+
+### Local secrets (API keys) ###
+src/main/resources/application-local.properties
+application-local.properties
+**/application-local.properties
+!**/application-local.properties.example

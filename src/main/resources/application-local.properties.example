@@ -1,0 +1,24 @@
+# Copy to application-local.properties (same folder). That file is gitignored — never commit real keys.
+
+# ========== Brevo SMTP (spring.profiles.active=brevo) ==========
+# BREVO_SMTP_USERNAME=your-login@smtp-brevo.com
+# BREVO_SMTP_PASSWORD=xsmtpsib-your-brevo-smtp-key
+# BREVO_MAIL_FROM=your-verified-sender@yourdomain.com
+# spring.mail.username=${BREVO_SMTP_USERNAME}
+# spring.mail.password=${BREVO_SMTP_PASSWORD}
+# app.mail.from=${BREVO_MAIL_FROM}
+
+# ========== Gmail SMTP (spring.profiles.active=gmail) ==========
+# GMAIL_USERNAME=your@gmail.com
+# GMAIL_APP_PASSWORD=your-16-char-app-password
+# spring.mail.username=${GMAIL_USERNAME}
+# spring.mail.password=${GMAIL_APP_PASSWORD}
+# app.mail.from=${GMAIL_USERNAME}
+
+# ========== Groq chatbot (optional) ==========
+# Get a free key: https://console.groq.com/keys
+# app.chatbot.provider=openai
+# app.chatbot.api-key=gsk_your_groq_key_here
+# app.chatbot.model=llama-3.3-70b-versatile
+# app.chatbot.openai-base-url=https://api.groq.com/openai/v1
+# app.chatbot.fallback-enabled=false

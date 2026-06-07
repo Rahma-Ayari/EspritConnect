@@ -13,7 +13,9 @@ public class RootController {
         return Map.of(
                 "service", "EspritConnect2 API",
                 "docs", "/swagger-ui.html",
-                "auth", "/api/auth/login"
+                "auth", "/api/auth/login",
+                "frontoffice", "/api/front",
+                "backoffice", "/api/back"
         );
     }
 }

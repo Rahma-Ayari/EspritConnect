@@ -25,6 +25,9 @@ public class Etudiant {
     private String nom;
     private String email;
     private String password;
+
+    /** Stored as ordinal (0=DEBUTANT) in legacy MySQL rows — do not use STRING here. */
+    @Enumerated(EnumType.ORDINAL)
     private Niveau niveau;
     private String filiere;
     private Integer scoreReadiness;

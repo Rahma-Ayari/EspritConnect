@@ -18,6 +18,7 @@ public class LoginHistory {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
     private User user;
 
     @Column(name = "login_time", nullable = false)

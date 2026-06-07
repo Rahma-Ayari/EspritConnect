@@ -8,6 +8,7 @@ import java.util.List;
 
 @Repository
 public interface OffreRepository extends JpaRepository<Offre, Long> {
+    List<Offre> findTop10ByDatePublicationAfterOrderByDatePublicationDesc(Date after);
     long countByDatePublicationBetween(Date startDate, Date endDate);
 
     List<Offre> findByEntreprise_IdEntrepriseOrderByDatePublicationDesc(Long entrepriseId);
