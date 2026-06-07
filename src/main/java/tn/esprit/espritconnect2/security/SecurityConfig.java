@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -18,6 +19,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import tn.esprit.espritconnect2.Config.ApiOfficePaths;
+
+
 
 import java.util.List;
 
@@ -36,11 +41,18 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
             .csrf(AbstractHttpConfigurer::disable)
+
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
             .authorizeHttpRequests(auth -> auth
+
                 .requestMatchers(HttpMethod.GET, "/", "/error").permitAll()
+                .requestMatchers("/uploads/**").permitAll()
+
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
                 .requestMatchers(
                         "/api/auth/login",
@@ -52,6 +64,7 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers("/api/offres/public/**").permitAll()
+
                 .requestMatchers("/api/evenements/upcoming").permitAll()
                 .requestMatchers("/api/admin/dashboard/**").permitAll()
                 .requestMatchers("/api/admin/settings/**").permitAll()
@@ -68,9 +81,27 @@ public class SecurityConfig {
                 // Public self-registration: create company without JWT (pending admin approval).
                 .requestMatchers(HttpMethod.POST, "/api/entreprises").permitAll()
                 .requestMatchers("/api/entreprises/**").hasAnyRole("ENTREPRISE", "ADMIN")
+
+                // Forum & Email Communications (back-office & front-office)
+                .requestMatchers("/api/forum/**").permitAll()
+                .requestMatchers("/api/forum-groups/**").permitAll()
+                .requestMatchers("/api/email-communications/**").permitAll()
+
+                // Activity Digest & Config
+                .requestMatchers("/api/digest-config/**").permitAll()
+                .requestMatchers("/api/activity-digest/**").permitAll()
+
+                // Support, Badges, Moderation
+                .requestMatchers("/api/badges/**").permitAll()
+                .requestMatchers("/api/support/**").permitAll()
+                .requestMatchers("/api/moderation/**").permitAll()
+
                 .anyRequest().authenticated()
+
             )
+
             .authenticationProvider(authenticationProvider)
+
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
