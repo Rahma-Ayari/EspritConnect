@@ -101,7 +101,7 @@ public class DigestConfigController {
             Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
         }
 
-        String url = "http://localhost:8088/espritconnect/uploads/banners/" + filename;
+        String url = "http://localhost:8089/espritconnect/uploads/banners/" + filename;
         return ResponseEntity.ok(Map.of("url", url));
     }
 }

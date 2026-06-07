@@ -4,7 +4,12 @@ public enum Role {
     ETUDIANT,
     ALUMNI,
     ENTREPRISE,
-    ADMIN,
-    ENSEIGNANT
+    ENSEIGNANT,
+    ADMIN;
+
+    /** 2FA réservée aux comptes utilisateurs (pas admin ni entreprise). */
+    public boolean isMfaEligible() {
+        return this != ADMIN && this != ENTREPRISE;
+    }
 }
 

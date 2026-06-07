@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -12,11 +13,16 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import tn.esprit.espritconnect2.Config.ApiOfficePaths;
+
+
 
 import java.util.List;
 
@@ -35,19 +41,68 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // Désactive la protection CSRF
-                .csrf(AbstractHttpConfigurer::disable)
-                // Gestion de session sans état (Stateless)
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // AUTORISE TOUTES LES REQUÊTES SANS EXCEPTION
-                        .requestMatchers("/**").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .authenticationProvider(authenticationProvider)
-                // On laisse le filtre JWT mais il sera ignoré par permitAll()
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+            .csrf(AbstractHttpConfigurer::disable)
+
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            .authorizeHttpRequests(auth -> auth
+
+                .requestMatchers(HttpMethod.GET, "/", "/error").permitAll()
+                .requestMatchers("/uploads/**").permitAll()
+
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
+                .requestMatchers(
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/verify-2fa-login",
+                        "/api/auth/register-enterprise",
+                        "/api/auth/verify-email",
+                        "/api/auth/resend-verification-email"
+                ).permitAll()
+                .requestMatchers("/api/auth/**").authenticated()
+                .requestMatchers("/api/offres/public/**").permitAll()
+
+                .requestMatchers("/api/evenements/upcoming").permitAll()
+                .requestMatchers("/api/admin/dashboard/**").permitAll()
+                .requestMatchers("/api/admin/settings/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/registration/settings").permitAll()
+                // DEV: open job APIs while building entreprise job dashboard (tighten before prod)
+                .requestMatchers("/api/offres/**").permitAll()
+                .requestMatchers("/api/matchings/**").permitAll()
+                .requestMatchers("/api/candidatures/**").permitAll()
+                .requestMatchers("/api/etudiants/me", "/api/alumni/me").authenticated()
+                .requestMatchers("/api/entreprises/*/job-dashboard").permitAll()
+                .requestMatchers("/api/entreprises/*/verification/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/entreprises/*").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // Public self-registration: create company without JWT (pending admin approval).
+                .requestMatchers(HttpMethod.POST, "/api/entreprises").permitAll()
+                .requestMatchers("/api/entreprises/**").hasAnyRole("ENTREPRISE", "ADMIN")
+
+                // Forum & Email Communications (back-office & front-office)
+                .requestMatchers("/api/forum/**").permitAll()
+                .requestMatchers("/api/forum-groups/**").permitAll()
+                .requestMatchers("/api/email-communications/**").permitAll()
+
+                // Activity Digest & Config
+                .requestMatchers("/api/digest-config/**").permitAll()
+                .requestMatchers("/api/activity-digest/**").permitAll()
+
+                // Support, Badges, Moderation
+                .requestMatchers("/api/badges/**").permitAll()
+                .requestMatchers("/api/support/**").permitAll()
+                .requestMatchers("/api/moderation/**").permitAll()
+
+                .anyRequest().authenticated()
+
+            )
+
+            .authenticationProvider(authenticationProvider)
+
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

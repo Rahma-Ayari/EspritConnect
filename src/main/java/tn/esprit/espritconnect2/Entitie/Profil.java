@@ -16,10 +16,24 @@ public class Profil {
     private Long idProfil;
 
     private String userId;
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String photo;
     private String lienLinkedIn;
     private String bio;
     private String lienGitHub;
+
+    // Champs additionnels pour un profil complet
+    private String prenom;
+    private String telephone;
+    private String adresse;
+    private String ville;
+    private String pays;
+    private String codePostal;
+    private String siteWeb;
+    private String dateNaissance;
+    private String genre;
+    private String nomProprietaire;
 
     @OneToMany(mappedBy = "profil")
     @JsonIgnore
@@ -29,17 +43,21 @@ public class Profil {
     @JsonIgnore
     private List<Notification> notifications;
     @OneToOne(mappedBy = "profil")
+    @JsonIgnore
     private Etudiant etudiant;
 
     @OneToOne(mappedBy = "profil")
+    @JsonIgnore
     private Alumni alumni;
 
     @OneToOne(mappedBy = "profil")
+    @JsonIgnore
     private Entreprise entreprise;
 
     @ManyToOne
     private AICareerAssistant aiCareerAssistant;
 
     @OneToOne(mappedBy = "profil")
+    @JsonIgnore
     private Administrateur administrateur;
 }

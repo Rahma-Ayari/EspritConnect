@@ -9,7 +9,7 @@ import java.nio.file.Paths;
 
 /**
  * Sert les fichiers uploades via URL :
- * http://localhost:8088/espritconnect/uploads/banners/nom-fichier
+ * http://localhost:8089/espritconnect/uploads/banners/nom-fichier
  * <p>
  * Stockage disque : sous-dossiers de app.upload.root (ex. banners/)
  * URL publique : /uploads/**

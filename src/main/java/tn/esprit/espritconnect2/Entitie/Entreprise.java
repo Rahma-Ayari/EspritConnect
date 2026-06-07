@@ -1,11 +1,13 @@
 package tn.esprit.espritconnect2.Entitie;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -34,13 +36,37 @@ public class Entreprise {
     private Boolean valide;
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status")
+    private VerificationStatus verificationStatus = VerificationStatus.DOCUMENTS_REQUIRED;
+
+    @Column(name = "verification_notes", length = 2000)
+    private String verificationNotes;
+
+    /** Inscription refusée par l'admin : retirée de la file d'attente. */
+    @Column(name = "inscription_refusee", nullable = false)
+    private boolean inscriptionRefusee = false;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreateEntreprise() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
+
     @OneToOne
     @JoinColumn(name = "profil_id")
+    @JsonIgnore
     private Profil profil;
 
     @OneToMany(mappedBy = "entreprise", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Offre> offres;
 
     @OneToMany(mappedBy = "entreprise", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Evenement> evenements;
 }

@@ -4,9 +4,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import tn.esprit.espritconnect2.Entitie.Candidature;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CandidatureRepository extends JpaRepository<Candidature, Long> {
     boolean existsByEtudiantIdEtudiantAndOffreIdOffre(Long etudiantId, Long offreId);
+
+    Optional<Candidature> findByEtudiantIdEtudiantAndOffreIdOffre(Long etudiantId, Long offreId);
 
     List<Candidature> findByEtudiantIdEtudiant(Long etudiantId);
 

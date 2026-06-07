@@ -22,5 +22,7 @@ public class CandidatureResponseDTO {
     private Float scoreMatch;
     private Long etudiantId;
     private Long offreId;
+    private String jobTitle;
+    private String companyName;
     private Long fichierId;
 }
