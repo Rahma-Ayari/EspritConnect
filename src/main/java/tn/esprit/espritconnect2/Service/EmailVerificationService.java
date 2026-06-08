@@ -106,9 +106,9 @@ public class EmailVerificationService {
         token.setUsedAt(LocalDateTime.now());
         tokenRepository.save(token);
 
-        if (approvalSettingsService.shouldAutoApprove(user.getEmail())) {
-            user.setEnabled(true);
+        if (approvalSettingsService.applyAutoApproval(user)) {
             userRepository.save(user);
+            emailService.sendApprovalNotification(user);
             log.info("Compte auto-approuvé après vérification email: {}", user.getEmail());
         }
 

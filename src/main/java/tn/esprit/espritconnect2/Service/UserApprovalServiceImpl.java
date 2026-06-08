@@ -71,36 +71,44 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     }
 
     /**
-     * Vérifie et applique l'auto-approbation pour une liste d'utilisateurs en attente.
-     * Utile pour synchroniser les changements faits directement en base de données.
+     * Résout la liste des utilisateurs réellement en attente d'approbation manuelle.
+     * Les comptes éligibles à l'auto-approbation sont exclus (et optionnellement approuvés).
      */
-    private List<UserApprovalDTO> processPendingUsers(List<User> users) {
-        if (users.isEmpty()) return Collections.emptyList();
+    private List<User> resolvePendingUsers(List<User> users, boolean applyAutoApproval) {
+        if (users.isEmpty()) {
+            return Collections.emptyList();
+        }
 
+        boolean emailVerificationRequired = approvalSettingsService.getSettings().isRequireEmailVerification();
         List<User> toAutoApprove = users.stream()
-                .filter(u -> !u.isEnabled() && approvalSettingsService.shouldAutoApprove(u.getEmail()))
+                .filter(u -> approvalSettingsService.shouldAutoApprove(u.getEmail()))
+                .filter(u -> !emailVerificationRequired || u.isEmailVerified())
                 .collect(Collectors.toList());
 
-        if (!toAutoApprove.isEmpty()) {
+        if (applyAutoApproval && !toAutoApprove.isEmpty()) {
             toAutoApprove.forEach(u -> {
-                u.setEnabled(true);
-                u.setStatus(Status.ACCEPTEE);
-                if (u.getRole() == Role.ENTREPRISE) {
-                    u.setVerificationStatus(tn.esprit.espritconnect2.Entitie.VerificationStatus.VERIFIED);
-                    if (u.getVerifiedAt() == null) {
-                        u.setVerifiedAt(java.time.LocalDateTime.now());
-                        u.setVerifiedBy("Auto Approved");
-                    }
-                }
+                approvalSettingsService.applyAutoApproval(u);
                 emailService.sendApprovalNotification(u);
             });
             userRepository.saveAll(toAutoApprove);
-            users.removeAll(toAutoApprove);
         }
 
-        return users.stream()
+        List<User> remaining = new ArrayList<>(users);
+        remaining.removeAll(toAutoApprove);
+        return remaining;
+    }
+
+    private List<UserApprovalDTO> processPendingUsers(List<User> users) {
+        return resolvePendingUsers(users, true).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
+    }
+
+    private long countPendingUsers() {
+        return resolvePendingUsers(
+                userRepository.findByStatusAndRoleNot(Status.EN_ATTENTE, Role.ADMIN),
+                false
+        ).size();
     }
 
     @Override
@@ -180,7 +188,7 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     @Override
     public UserApprovalStatsDTO getApprovalStats() {
         return UserApprovalStatsDTO.builder()
-                .pendingCount(userRepository.countByStatusAndRoleNot(Status.EN_ATTENTE, Role.ADMIN))
+                .pendingCount(countPendingUsers())
                 .approvedCount(userRepository.countByStatus(Status.ACCEPTEE))
                 .totalStudents(userRepository.countByRole(Role.ETUDIANT))
                 .totalAlumni(userRepository.countByRole(Role.ALUMNI))

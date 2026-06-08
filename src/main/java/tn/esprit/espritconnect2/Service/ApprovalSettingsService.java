@@ -6,8 +6,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import tn.esprit.espritconnect2.DTO.ApprovalSettingsDTO;
 import tn.esprit.espritconnect2.Entitie.ApprovalSettings;
+import tn.esprit.espritconnect2.Entitie.Role;
+import tn.esprit.espritconnect2.Entitie.Status;
+import tn.esprit.espritconnect2.Entitie.User;
+import tn.esprit.espritconnect2.Entitie.VerificationStatus;
 import tn.esprit.espritconnect2.Repository.ApprovalSettingsRepository;
 
+import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Service
@@ -41,6 +46,8 @@ public class ApprovalSettingsService {
     }
 
     public ApprovalSettingsDTO updateSettings(ApprovalSettingsDTO dto) {
+        dto.setAutoApproveDomain(normalizeDomain(dto.getAutoApproveDomain()));
+
         ApprovalSettings settings = ApprovalSettings.builder()
                 .id(1L)
                 .autoApproveEspritEmails(dto.isAutoApproveEspritEmails())
@@ -71,15 +78,43 @@ public class ApprovalSettingsService {
             return false;
         }
         
-        String domain = settings.getAutoApproveDomain();
-        if (domain == null || domain.isEmpty()) {
-            domain = "esprit.tn";
-        }
-        
+        String domainLower = normalizeDomain(settings.getAutoApproveDomain());
         String emailLower = email.toLowerCase().trim();
-        String domainLower = domain.toLowerCase().trim();
-        
+
         return emailLower.endsWith("@" + domainLower);
+    }
+
+    /**
+     * Applique l'auto-approbation complète (enabled + statut ACCEPTEE) si l'email correspond au domaine configuré.
+     */
+    public boolean applyAutoApproval(User user) {
+        if (!shouldAutoApprove(user.getEmail())) {
+            return false;
+        }
+
+        user.setEnabled(true);
+        user.setStatus(Status.ACCEPTEE);
+        if (user.getRole() == Role.ENTREPRISE) {
+            user.setVerificationStatus(VerificationStatus.VERIFIED);
+            if (user.getVerifiedAt() == null) {
+                user.setVerifiedAt(LocalDateTime.now());
+                user.setVerifiedBy("Auto Approved");
+            }
+        }
+
+        log.info("Auto-approbation appliquée pour {}", user.getEmail());
+        return true;
+    }
+
+    private String normalizeDomain(String domain) {
+        if (domain == null || domain.isBlank()) {
+            return "esprit.tn";
+        }
+        String normalized = domain.toLowerCase().trim();
+        if (normalized.startsWith("@")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
     }
 
     public void resetToDefaults() {
@@ -101,7 +136,7 @@ public class ApprovalSettingsService {
                 .requireEmailVerification(entity.isRequireEmailVerification())
                 .notifyUserOnApproval(entity.isNotifyUserOnApproval())
                 .notifyUserOnDecline(entity.isNotifyUserOnDecline())
-                .autoApproveDomain(entity.getAutoApproveDomain())
+                .autoApproveDomain(normalizeDomain(entity.getAutoApproveDomain()))
                 .build();
     }
 }

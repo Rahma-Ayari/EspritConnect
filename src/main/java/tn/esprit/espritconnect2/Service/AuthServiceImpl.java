@@ -242,7 +242,8 @@ public class AuthServiceImpl implements IAuthService {
         String encodedPassword = passwordEncoder.encode(req.getPassword());
 
         boolean shouldBeAutoApproved = approvalSettingsService.shouldAutoApprove(req.getEmail());
-        
+        boolean emailVerificationRequired = approvalSettingsService.getSettings().isRequireEmailVerification();
+
         User user = User.builder()
                 .nom(req.getNom())
                 .email(req.getEmail())
@@ -255,11 +256,6 @@ public class AuthServiceImpl implements IAuthService {
         
         log.info("Création de l'utilisateur {} - statut DB forcé à PENDING", user.getEmail());
         userRepository.save(user);
-
-        if (!shouldBeAutoApproved) {
-            log.info("Notification admin envoyée pour l'utilisateur pending: {}", user.getEmail());
-            emailService.sendNewRegistrationNotification(user);
-        }
 
         switch (role) {
             case ETUDIANT:
@@ -337,12 +333,32 @@ public class AuthServiceImpl implements IAuthService {
                 break;
         }
 
-        String verificationUrl = emailVerificationService.sendVerificationEmail(user);
+        boolean autoApproved = false;
+        if (shouldBeAutoApproved && !emailVerificationRequired) {
+            autoApproved = approvalSettingsService.applyAutoApproval(user);
+            if (autoApproved) {
+                user.setEmailVerified(true);
+                userRepository.save(user);
+                emailService.sendApprovalNotification(user);
+            }
+        }
+
+        if (!autoApproved) {
+            log.info("Notification admin envoyée pour l'utilisateur pending: {}", user.getEmail());
+            emailService.sendNewRegistrationNotification(user);
+        }
+
+        String verificationUrl = null;
+        if (emailVerificationRequired || !autoApproved) {
+            verificationUrl = emailVerificationService.sendVerificationEmail(user);
+        }
 
         return RegisterResponse.builder()
-                .message("Veuillez vérifier votre email.")
+                .message(autoApproved
+                        ? "Votre compte a été approuvé automatiquement."
+                        : "Veuillez vérifier votre email.")
                 .email(req.getEmail())
-                .emailVerificationRequired(true)
+                .emailVerificationRequired(emailVerificationRequired && !autoApproved)
                 .verificationUrl(exposeVerificationLinkOnRegister ? verificationUrl : null)
                 .build();
     }
@@ -367,6 +383,8 @@ public class AuthServiceImpl implements IAuthService {
         }
 
         String encodedPassword = passwordEncoder.encode(req.getPassword());
+        boolean shouldBeAutoApproved = approvalSettingsService.shouldAutoApprove(req.getEmail());
+        boolean emailVerificationRequired = approvalSettingsService.getSettings().isRequireEmailVerification();
 
         User user = User.builder()
                 .nom(req.getNom())
@@ -392,13 +410,31 @@ public class AuthServiceImpl implements IAuthService {
 
         log.info("Entreprise {} inscrite avec document justificatif: {}", user.getEmail(), document.getOriginalFilename());
 
-        emailService.sendNewRegistrationNotification(user);
-        emailVerificationService.sendVerificationEmail(user);
+        boolean autoApproved = false;
+        if (shouldBeAutoApproved && !emailVerificationRequired) {
+            autoApproved = approvalSettingsService.applyAutoApproval(user);
+            if (autoApproved) {
+                user.setEmailVerified(true);
+                userRepository.save(user);
+                emailService.sendApprovalNotification(user);
+            }
+        }
+
+        if (!autoApproved) {
+            log.info("Notification admin envoyée pour l'entreprise pending: {}", user.getEmail());
+            emailService.sendNewRegistrationNotification(user);
+        }
+
+        if (emailVerificationRequired || !autoApproved) {
+            emailVerificationService.sendVerificationEmail(user);
+        }
 
         return RegisterResponse.builder()
-                .message("Veuillez vérifier votre email.")
+                .message(autoApproved
+                        ? "Votre compte a été approuvé automatiquement."
+                        : "Veuillez vérifier votre email.")
                 .email(req.getEmail())
-                .emailVerificationRequired(true)
+                .emailVerificationRequired(emailVerificationRequired && !autoApproved)
                 .build();
     }
 }

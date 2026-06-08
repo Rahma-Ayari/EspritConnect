@@ -4,20 +4,24 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+import tn.esprit.espritconnect2.Entitie.Role;
 import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Repository.AdministrateurRepository;
+import tn.esprit.espritconnect2.Repository.UserRepository;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -27,14 +31,8 @@ public class EmailServiceImpl implements IEmailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
     private final AdministrateurRepository administrateurRepository;
+    private final UserRepository userRepository;
     private final ApprovalSettingsService approvalSettingsService;
-    
-    private SmartMailingService smartMailingService;
-    
-    @Autowired
-    public void setSmartMailingService(@Lazy SmartMailingService smartMailingService) {
-        this.smartMailingService = smartMailingService;
-    }
 
     @Value("${app.mail.from}")
     private String fromEmail;
@@ -45,15 +43,83 @@ public class EmailServiceImpl implements IEmailService {
     @Value("${app.mail.admin-notification.subject}")
     private String adminNotificationSubject;
 
+    @Value("${app.mail.admin-notification.recipients:}")
+    private String adminNotificationRecipients;
+
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
     @Override
     @Async
     public void sendNewRegistrationNotification(User user) {
-        // Déléguer au Smart Mailing Service pour une gestion intelligente des notifications
-        smartMailingService.queueNewRegistrationNotification(user);
-        log.debug("New registration notification queued for smart mailing: {}", user.getEmail());
+        if (!approvalSettingsService.getSettings().isEmailNotificationsOnNewRegistration()) {
+            log.debug("Admin registration notifications disabled, skipping for user: {}", user.getEmail());
+            return;
+        }
+
+        List<String> adminEmails = resolveAdminRecipients();
+        if (adminEmails.isEmpty()) {
+            log.error("No admin recipient configured for registration notification (user: {})", user.getEmail());
+            return;
+        }
+
+        String htmlContent = buildAdminRegistrationEmail(user);
+        for (String adminEmail : adminEmails) {
+            try {
+                sendHtmlEmail(adminEmail, adminNotificationSubject, htmlContent);
+                log.info("Admin registration notification sent to {} for user: {}", adminEmail, user.getEmail());
+            } catch (Exception e) {
+                log.error("Failed to send admin registration notification to {} for user {}: {}",
+                        adminEmail, user.getEmail(), e.getMessage(), e);
+            }
+        }
+    }
+
+    private List<String> resolveAdminRecipients() {
+        Set<String> recipients = new LinkedHashSet<>();
+
+        administrateurRepository.findAllEmails().stream()
+                .filter(email -> email != null && !email.isBlank())
+                .map(String::trim)
+                .forEach(recipients::add);
+
+        userRepository.findByRole(Role.ADMIN).stream()
+                .map(User::getEmail)
+                .filter(email -> email != null && !email.isBlank())
+                .map(String::trim)
+                .forEach(recipients::add);
+
+        if (adminNotificationRecipients != null && !adminNotificationRecipients.isBlank()) {
+            for (String email : adminNotificationRecipients.split(",")) {
+                String trimmed = email.trim();
+                if (!trimmed.isEmpty()) {
+                    recipients.add(trimmed);
+                }
+            }
+        }
+
+        return new ArrayList<>(recipients);
+    }
+
+    private String buildAdminRegistrationEmail(User user) {
+        String approvalUrl = frontendUrl + "/admin/user-management/approval";
+        return """
+            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+            <h2>Nouvelle inscription en attente</h2>
+            <p>Un nouvel utilisateur s'est inscrit et attend votre approbation :</p>
+            <ul>
+              <li><strong>Nom :</strong> %s</li>
+              <li><strong>Email :</strong> %s</li>
+              <li><strong>Rôle :</strong> %s</li>
+            </ul>
+            <p><a href="%s" style="background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">Gérer les approbations</a></p>
+            </body></html>
+            """.formatted(
+                user.getNom(),
+                user.getEmail(),
+                formatRole(user.getRole().name()),
+                approvalUrl
+        );
     }
 
     @Override
@@ -103,7 +169,6 @@ public class EmailServiceImpl implements IEmailService {
     @Override
     @Async
     public void sendEmailVerification(User user, String verificationToken) {
-        // Lien vers la page Angular (pas une page backend)
         String verificationUrl = frontendUrl + "/verify-email?token=" + verificationToken;
 
         String htmlContent = """
@@ -155,7 +220,7 @@ public class EmailServiceImpl implements IEmailService {
             String temporaryPassword = (String) context.getVariable("temporaryPassword");
             String loginUrl = (String) context.getVariable("loginUrl");
             String userRole = (String) context.getVariable("userRole");
-            
+
             return """
                 <!DOCTYPE html>
                 <html>
@@ -182,17 +247,17 @@ public class EmailServiceImpl implements IEmailService {
                         <div class="content">
                             <p>Bonjour <strong>%s</strong>,</p>
                             <p>Un compte a été créé pour vous sur la plateforme EspritConnect en tant que <strong>%s</strong>.</p>
-                            
+
                             <div class="credentials">
                                 <p><strong>Vos identifiants de connexion:</strong></p>
                                 <p>Email: <strong>%s</strong></p>
                                 <p>Mot de passe temporaire: <span class="password">%s</span></p>
                             </div>
-                            
+
                             <div class="warning">
                                 <strong>Important:</strong> Pour des raisons de sécurité, veuillez changer votre mot de passe lors de votre première connexion.
                             </div>
-                            
+
                             <p style="text-align: center;">
                                 <a href="%s" class="btn">Se connecter</a>
                             </p>

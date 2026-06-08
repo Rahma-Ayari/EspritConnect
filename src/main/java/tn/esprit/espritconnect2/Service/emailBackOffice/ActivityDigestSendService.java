@@ -36,8 +36,11 @@ public class ActivityDigestSendService {
     @Value("${app.upload.root}")
     private String uploadRoot;
 
-    @Value("${spring.mail.username}")
+    @Value("${app.mail.from}")
     private String senderEmail;
+
+    @Value("${app.mail.from-name:EspritConnect}")
+    private String senderName;
 
     @Transactional
     public void sendNowToAllEnabledUsers() {
@@ -235,8 +238,7 @@ public class ActivityDigestSendService {
         helper.setTo(to);
         helper.setSubject(subject != null && !subject.isBlank() ? subject : "What's new on Esprit");
         
-        // Setting sender email with a beautiful display name 'Esprit Connect'
-        helper.setFrom(senderEmail, "Esprit Connect");
+        helper.setFrom(senderEmail, senderName);
         
         helper.setText(html, true);
 

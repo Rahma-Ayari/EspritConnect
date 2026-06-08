@@ -19,24 +19,23 @@ public class EmailDispatchService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username}")
-    private String smtpUsername;
-
     @Value("${app.mail.from:}")
     private String configuredFrom;
+
+    @Value("${app.mail.from-name:EspritConnect}")
+    private String fromName;
 
     public void sendHtml(String to, String from, String subject, String html) throws Exception {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
         helper.setTo(to);
-        // Gmail/SMTP providers often enforce the authenticated address as "From".
-        // So we always use the SMTP username, but with a friendly display name.
-        String effectiveFrom = (smtpUsername != null && !smtpUsername.isBlank())
-                ? smtpUsername
-                : ((configuredFrom != null && !configuredFrom.isBlank()) ? configuredFrom : from);
-        helper.setFrom(effectiveFrom, "Esprit Connect");
 
-        // If caller provided a different "from", keep it as Reply-To (optional).
+        // Brevo requires the verified sender address, not the SMTP login (xxx@smtp-brevo.com).
+        String effectiveFrom = (configuredFrom != null && !configuredFrom.isBlank())
+                ? configuredFrom
+                : from;
+        helper.setFrom(effectiveFrom, fromName);
+
         if (from != null && !from.isBlank() && !from.equalsIgnoreCase(effectiveFrom)) {
             helper.setReplyTo(from);
         }
