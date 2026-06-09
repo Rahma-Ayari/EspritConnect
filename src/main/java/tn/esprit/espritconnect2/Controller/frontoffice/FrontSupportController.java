@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import tn.esprit.espritconnect2.Config.ApiOfficePaths;
 import tn.esprit.espritconnect2.DTO.*;
+import tn.esprit.espritconnect2.Config.ChatbotProperties;
 import tn.esprit.espritconnect2.Service.ISupportService;
+import tn.esprit.espritconnect2.Service.ChatbotAiService;
 import tn.esprit.espritconnect2.Service.TicketAttachmentStorage;
 import tn.esprit.espritconnect2.security.SecurityUtils;
 
@@ -31,6 +33,8 @@ public class FrontSupportController {
 
     private final ISupportService supportService;
     private final TicketAttachmentStorage attachmentStorage;
+    private final ChatbotAiService chatbotAiService;
+    private final ChatbotProperties chatbotProperties;
 
     @PostMapping("/tickets")
     @PreAuthorize("isAuthenticated()")
@@ -157,7 +161,18 @@ public class FrontSupportController {
                 HttpStatus.CREATED);
     }
 
+    @GetMapping("/chatbot/status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> chatbotStatus() {
+        return ResponseEntity.ok(Map.of(
+                "configured", chatbotAiService.isConfigured(),
+                "provider", chatbotProperties.getProvider() != null ? chatbotProperties.getProvider() : "none",
+                "model", chatbotProperties.getModel() != null ? chatbotProperties.getModel() : ""
+        ));
+    }
+
     @PostMapping("/chatbot/ask")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Object>> askChatbot(@RequestBody ChatbotRequestDTO request) {
         String message = request != null ? request.getMessage() : null;
         var history = request != null && request.getHistory() != null

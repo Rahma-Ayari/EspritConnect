@@ -201,8 +201,8 @@ public class ChatbotAiService {
 
         // When AI is configured but temporarily unavailable, do not dump raw FAQ text
         if (isConfigured()) {
-            return "I'm having a brief connection issue with the AI service. Please try again in a moment. "
-                    + "You can also browse **FAQ** in Help & Support, or open a ticket for account problems.";
+            return "Je rencontre un problème momentané avec le service IA. Réessayez dans quelques instants. "
+                    + "Vous pouvez aussi consulter la **FAQ** dans Aide & Support, ou ouvrir un ticket pour les problèmes de compte.";
         }
 
         if (!matchedFaqs.isEmpty()) {
@@ -217,9 +217,10 @@ public class ChatbotAiService {
             return sb.toString();
         }
 
-        return "I'd love to help with that! Add your **Groq API key** to "
-                + "`src/main/resources/application-local.properties` (see application-local.properties.example), "
-                + "or set the `GROQ_API_KEY` environment variable, then restart the backend.";
+        return "Je peux répondre avec l'IA une fois qu'une clé API est configurée. "
+                + "Ajoutez votre clé **Groq** (gratuite) dans `application-local.properties` "
+                + "(`app.chatbot.api-key=...`) ou définissez la variable `GROQ_API_KEY`, puis redémarrez le backend. "
+                + "En attendant, consultez la section **Aide & Support** ou ouvrez un ticket pour les problèmes techniques.";
     }
 
     private String tryGeneralTopicReply(String lower) {

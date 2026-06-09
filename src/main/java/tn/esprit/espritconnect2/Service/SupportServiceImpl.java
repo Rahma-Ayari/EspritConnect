@@ -800,8 +800,8 @@ public class SupportServiceImpl implements ISupportService {
         List<ChatbotHistoryItemDTO> safeHistory = history != null ? history : List.of();
 
         if (message == null || message.trim().isEmpty()) {
-            response.put("response", "Hi! I'm your ESPRIT Connect assistant — ask me about careers, the platform, "
-                    + "events, mentoring, study tips, or anything else. How can I help?");
+            response.put("response", "Bonjour ! Je suis votre assistant ESPRIT Connect — carrière, plateforme, "
+                    + "événements, mentorat, conseils CV, et plus. Comment puis-je vous aider ?");
             response.put("suggestedFaqs", List.of());
             response.put("ticketSuggest", false);
             response.put("aiPowered", false);
