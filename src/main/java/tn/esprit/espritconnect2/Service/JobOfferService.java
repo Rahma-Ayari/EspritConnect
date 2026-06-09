@@ -11,6 +11,7 @@ import tn.esprit.espritconnect2.Repository.EntrepriseRepository;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Locale;
 
 @Service
 public class JobOfferService {
@@ -312,9 +313,7 @@ public class JobOfferService {
     private void updateEntityFromDTO(Offre offre, JobOfferDTO dto) {
         offre.setTitre(dto.getTitle());
         offre.setDescription(dto.getDescription());
-        if (dto.getContractType() != null) {
-            offre.setTypeOffre(Type.valueOf(dto.getContractType()));
-        }
+        offre.setTypeOffre(resolveContractType(dto.getContractType()));
         offre.setLocalisation(dto.getLocation());
         offre.setDomaine(dto.getDepartment());
         offre.setDepartment(dto.getDepartment());
@@ -351,6 +350,19 @@ public class JobOfferService {
             Entreprise entreprise = entrepriseRepository.findById(dto.getEntrepriseId())
                 .orElseThrow(() -> new IllegalArgumentException("Entreprise introuvable avec l'identifiant fourni"));
             offre.setEntreprise(entreprise);
+        }
+    }
+
+    private Type resolveContractType(String contractType) {
+        if (contractType == null || contractType.isBlank()) {
+            return Type.STAGE;
+        }
+        try {
+            return Type.valueOf(contractType.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(
+                "Type de contrat invalide: " + contractType + ". Valeurs acceptées: STAGE, EMPLOI, APPRENTISSAGE, PFE, PORTFOLIO, CV"
+            );
         }
     }
 }

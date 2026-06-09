@@ -32,6 +32,7 @@ public class Offre {
 
     @NotNull(message = "Le type d'offre est obligatoire")
     @Enumerated(EnumType.STRING)
+    @Column(name = "type_offre", length = 50)
     private Type typeOffre; // stage, emploi
 
     private String localisation;
