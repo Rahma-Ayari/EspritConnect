@@ -27,6 +27,10 @@
 @REM   MVNW_VERBOSE - true: enable verbose log; others: silence the output
 @REM ----------------------------------------------------------------------------
 
+@REM Use a JDK (not JRE) — required for compilation on Windows dev machines.
+@IF EXIST "%~dp0.mvn\ensure-java.cmd" @CALL "%~dp0.mvn\ensure-java.cmd"
+@IF ERRORLEVEL 1 @EXIT /B 1
+
 @IF "%__MVNW_ARG0_NAME__%"=="" (SET __MVNW_ARG0_NAME__=%~nx0)
 @SET __MVNW_CMD__=
 @SET __MVNW_ERROR__=

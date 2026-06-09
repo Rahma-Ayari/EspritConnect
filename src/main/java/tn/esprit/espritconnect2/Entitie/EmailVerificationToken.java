@@ -19,6 +19,8 @@ public class EmailVerificationToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(length = 36, updatable = false, nullable = false)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
     private UUID id;
 
     @Column(nullable = false, unique = true, length = 64)

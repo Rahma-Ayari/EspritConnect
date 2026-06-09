@@ -13,7 +13,7 @@ import tn.esprit.espritconnect2.Entitie.Etudiant;
 import tn.esprit.espritconnect2.Entitie.Role;
 import tn.esprit.espritconnect2.Entitie.Status;
 import tn.esprit.espritconnect2.Entitie.User;
-import tn.esprit.espritconnect2.Exception.NotFoundException;
+import tn.esprit.espritconnect2.exception.NotFoundException;
 import tn.esprit.espritconnect2.Repository.AlumniRepository;
 import tn.esprit.espritconnect2.Repository.EtudiantRepository;
 import tn.esprit.espritconnect2.Repository.UserRepository;

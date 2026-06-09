@@ -9,7 +9,7 @@ import tn.esprit.espritconnect2.Entitie.Competence;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
 import tn.esprit.espritconnect2.Entitie.Matching;
 import tn.esprit.espritconnect2.Entitie.Offre;
-import tn.esprit.espritconnect2.Exception.NotFoundException;
+import tn.esprit.espritconnect2.exception.NotFoundException;
 import tn.esprit.espritconnect2.Repository.CandidatureRepository;
 import tn.esprit.espritconnect2.Repository.EtudiantRepository;
 import tn.esprit.espritconnect2.Repository.MatchingRepository;

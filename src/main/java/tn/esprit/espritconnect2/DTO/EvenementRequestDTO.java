@@ -1,13 +1,20 @@
 package tn.esprit.espritconnect2.DTO;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Date;
 
-@Getter @Setter @AllArgsConstructor @NoArgsConstructor @Builder
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
 public class EvenementRequestDTO {
     @NotBlank(message = "Le titre est obligatoire")
     private String titre;
@@ -15,14 +22,31 @@ public class EvenementRequestDTO {
     @NotBlank(message = "Le lieu est obligatoire")
     private String lieu;
 
-    @NotNull(message = "La date de l'événement est obligatoire")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private Date dateEvenement;
 
-    @Positive(message = "La capacité doit être positive")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @NotNull(message = "La date de debut est obligatoire")
+    private LocalDate dateDebut;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @NotNull(message = "La date de fin est obligatoire")
+    private LocalDate dateFin;
+
+    @JsonFormat(pattern = "HH:mm")
+    @NotNull(message = "L'heure de debut est obligatoire")
+    private LocalTime heureDebut;
+
+    @JsonFormat(pattern = "HH:mm")
+    @NotNull(message = "L'heure de fin est obligatoire")
+    private LocalTime heureFin;
+
+    @Positive(message = "La capacite doit etre positive")
     private Integer capacite;
 
-    private String type;
-
-    @NotNull(message = "L'ID de l'entreprise est obligatoire")
+    private Boolean unlimitedParticipants;
+    private Long typeEvenementId;
+    private String imageUrl;
+    private String status;
     private Long entrepriseId;
 }

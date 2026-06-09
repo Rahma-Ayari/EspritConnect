@@ -7,7 +7,7 @@ import tn.esprit.espritconnect2.DTO.ModerationReportDTO;
 import tn.esprit.espritconnect2.DTO.ModerationReportRequestDTO;
 import tn.esprit.espritconnect2.DTO.ModerationReviewRequestDTO;
 import tn.esprit.espritconnect2.Entitie.*;
-import tn.esprit.espritconnect2.Exception.NotFoundException;
+import tn.esprit.espritconnect2.exception.NotFoundException;
 import tn.esprit.espritconnect2.Repository.ModerationReportRepository;
 import tn.esprit.espritconnect2.Repository.UserRepository;
 
@@ -94,7 +94,7 @@ public class ModerationServiceImpl implements IModerationService {
         ModerationReport report = moderationReportRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Moderation report not found"));
         if (report.getReporter() == null || !report.getReporter().getId().equals(reporterId)) {
-            throw new tn.esprit.espritconnect2.Exception.BusinessRuleException("You can only view your own reports.");
+            throw new tn.esprit.espritconnect2.exception.BusinessRuleException("You can only view your own reports.");
         }
         return mapToDTO(report);
     }

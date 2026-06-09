@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 import tn.esprit.espritconnect2.DTO.EntrepriseJobDashboardDTO;
 import tn.esprit.espritconnect2.Entitie.Entreprise;
 import tn.esprit.espritconnect2.Entitie.Status;
-import tn.esprit.espritconnect2.Exception.NotFoundException;
+import tn.esprit.espritconnect2.exception.NotFoundException;
 import tn.esprit.espritconnect2.Repository.CandidatureRepository;
 import tn.esprit.espritconnect2.Repository.EntrepriseRepository;
 import tn.esprit.espritconnect2.Repository.OffreRepository;

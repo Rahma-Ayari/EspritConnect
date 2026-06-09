@@ -1,4 +1,4 @@
-package tn.esprit.espritconnect2.Exception;
+package tn.esprit.espritconnect2.exception;
 
 public class BusinessRuleException extends RuntimeException {
     public BusinessRuleException(String message) {

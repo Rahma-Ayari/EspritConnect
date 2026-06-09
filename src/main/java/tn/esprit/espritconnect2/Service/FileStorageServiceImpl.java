@@ -8,7 +8,7 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import tn.esprit.espritconnect2.Exception.BusinessRuleException;
+import tn.esprit.espritconnect2.exception.BusinessRuleException;
 
 import java.io.IOException;
 import java.net.MalformedURLException;

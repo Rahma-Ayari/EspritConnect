@@ -1,4 +1,4 @@
-package tn.esprit.espritconnect2.Exception;
+package tn.esprit.espritconnect2.exception;
 
 public class NotFoundException extends RuntimeException {
     public NotFoundException(String message) {

@@ -9,8 +9,8 @@ import tn.esprit.espritconnect2.DTO.EntrepriseVerificationDTO;
 import tn.esprit.espritconnect2.Entitie.Entreprise;
 import tn.esprit.espritconnect2.Entitie.EntrepriseDocument;
 import tn.esprit.espritconnect2.Entitie.VerificationStatus;
-import tn.esprit.espritconnect2.Exception.BusinessRuleException;
-import tn.esprit.espritconnect2.Exception.NotFoundException;
+import tn.esprit.espritconnect2.exception.BusinessRuleException;
+import tn.esprit.espritconnect2.exception.NotFoundException;
 import tn.esprit.espritconnect2.Repository.EntrepriseDocumentRepository;
 import tn.esprit.espritconnect2.Repository.EntrepriseRepository;
 

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.espritconnect2.DTO.*;
 import tn.esprit.espritconnect2.Entitie.*;
-import tn.esprit.espritconnect2.Exception.NotFoundException;
+import tn.esprit.espritconnect2.exception.NotFoundException;
 import tn.esprit.espritconnect2.Repository.*;
 
 import java.time.LocalDateTime;
@@ -451,7 +451,7 @@ public class SupportServiceImpl implements ISupportService {
         User author = userRepository.findById(authorId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         if (req.getContent() == null || req.getContent().trim().isEmpty()) {
-            throw new tn.esprit.espritconnect2.Exception.BusinessRuleException("Comment cannot be empty.");
+            throw new tn.esprit.espritconnect2.exception.BusinessRuleException("Comment cannot be empty.");
         }
 
         FaqComment comment = FaqComment.builder()

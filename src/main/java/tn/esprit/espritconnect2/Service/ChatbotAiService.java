@@ -234,6 +234,7 @@ public class ChatbotAiService {
 
                     I can help with careers, using the platform, events, CV tips, and more — what would you like to explore?""";
         }
+
         if (lower.contains("esprit") && containsAny(lower, "where", "wheres", "where's", "location", "address", "campus", "find", "located",
                 "où", "ou ", "adresse", "localisation", "campus", "trouver", "situé", "situe")) {
             return """
@@ -463,5 +464,6 @@ public class ChatbotAiService {
             }
         }
         return null;
+
     }
 }
