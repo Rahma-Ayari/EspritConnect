@@ -34,6 +34,8 @@ import tn.esprit.espritconnect2.Repository.UserDeviceRepository;
 import tn.esprit.espritconnect2.security.JwtUtils;
 import tn.esprit.espritconnect2.security.MfaRateLimiter;
 import tn.esprit.espritconnect2.security.UserAgentParser;
+import tn.esprit.espritconnect2.Entitie.PasswordResetToken;
+import tn.esprit.espritconnect2.Repository.PasswordResetTokenRepository;
 
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -61,6 +63,10 @@ public class AuthServiceImpl implements IAuthService {
     private final UserAgentParser userAgentParser;
     private final HttpServletRequest request;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    
+    @Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrl;
     
     @Value("${app.email-verification.expose-link-on-register:false}")
     private boolean exposeVerificationLinkOnRegister;
@@ -436,5 +442,47 @@ public class AuthServiceImpl implements IAuthService {
                 .email(req.getEmail())
                 .emailVerificationRequired(emailVerificationRequired && !autoApproved)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void requestPasswordReset(String email) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return; // Fail silently for security
+        }
+        User user = userOpt.get();
+
+        passwordResetTokenRepository.findByUser(user).ifPresent(passwordResetTokenRepository::delete);
+
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .token(token)
+                .user(user)
+                .expiryDate(LocalDateTime.now().plusHours(24))
+                .build();
+        
+        passwordResetTokenRepository.save(resetToken);
+
+        String resetUrl = frontendUrl + "/reset-password?token=" + token;
+        emailService.sendPasswordResetEmail(user, resetUrl);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("Jeton invalide."));
+
+        if (resetToken.isExpired()) {
+            passwordResetTokenRepository.delete(resetToken);
+            throw new IllegalArgumentException("Jeton expiré.");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        passwordResetTokenRepository.delete(resetToken);
     }
 }

@@ -12,4 +12,6 @@ public interface IAuthService {
     AuthResponse verify2faLogin(tn.esprit.espritconnect2.DTO.TwoFactorVerificationRequest verifyReq, String ipAddress, String userAgent);
     RegisterResponse register(RegisterRequest req);
     RegisterResponse registerEnterprise(EnterpriseRegisterRequest req, MultipartFile document);
+    void requestPasswordReset(String email);
+    void resetPassword(String token, String newPassword);
 }

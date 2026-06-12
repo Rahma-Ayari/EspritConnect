@@ -273,6 +273,28 @@ public class EmailServiceImpl implements IEmailService {
         }
     }
 
+    @Override
+    @Async
+    public void sendPasswordResetEmail(User user, String resetUrl) {
+        String htmlContent = """
+            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+            <h2>Réinitialisation de votre mot de passe — EspritConnect</h2>
+            <p>Bonjour <strong>%s</strong>,</p>
+            <p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :</p>
+            <p><a href="%s" style="background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">Réinitialiser le mot de passe</a></p>
+            <p style="color:#666;font-size:12px">Si le bouton ne fonctionne pas, copiez-collez ce lien : %s</p>
+            <p style="color:#666;font-size:12px">Ce lien expire dans 24 heures. Si vous n'avez pas fait cette demande, vous pouvez ignorer cet e-mail.</p>
+            </body></html>
+            """.formatted(user.getNom(), resetUrl, resetUrl);
+
+        try {
+            sendHtmlEmail(user.getEmail(), "Réinitialisation de mot de passe — EspritConnect", htmlContent);
+            log.info("Password reset email sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to: {}", user.getEmail(), e);
+        }
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException, UnsupportedEncodingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

@@ -13,4 +13,6 @@ public interface IEmailService {
     void sendWelcomeEmailWithTemporaryPassword(User user, String temporaryPassword);
 
     void sendEmailVerification(User user, String verificationToken);
+
+    void sendPasswordResetEmail(User user, String resetUrl);
 }
