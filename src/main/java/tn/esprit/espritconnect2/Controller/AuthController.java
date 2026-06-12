@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.List;
 import java.util.Map;
 import tn.esprit.espritconnect2.Repository.UserDeviceRepository;
+import tn.esprit.espritconnect2.exception.AccountLockedException;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -48,9 +49,30 @@ public class AuthController {
         try {
             AuthResponse response = authService.login(req);
             return ResponseEntity.ok(response);
+        } catch (AccountLockedException e) {
+            return ResponseEntity.status(423) // Locked
+                    .body(Map.of(
+                            "message", e.getMessage(),
+                            "code", "ACCOUNT_LOCKED",
+                            "remainingAttempts", e.getRemainingAttempts(),
+                            "lockoutSeconds", e.getLockoutSeconds()
+                    ));
         } catch (BadCredentialsException e) {
+            int remainingAttempts = 5;
+            String msg = e.getMessage();
+            if (msg.contains("Tentatives restantes :")) {
+                try {
+                    String parts[] = msg.split("Tentatives restantes : ");
+                    remainingAttempts = Integer.parseInt(parts[1].trim());
+                } catch (Exception ex) {
+                    // fallback
+                }
+            }
             return ResponseEntity.status(401)
-                    .body(Map.of("message", e.getMessage()));
+                    .body(Map.of(
+                            "message", msg,
+                            "remainingAttempts", remainingAttempts
+                    ));
         } catch (EmailNotVerifiedException e) {
             return ResponseEntity.status(403)
                     .body(Map.of("message", e.getMessage(), "code", "EMAIL_NOT_VERIFIED"));

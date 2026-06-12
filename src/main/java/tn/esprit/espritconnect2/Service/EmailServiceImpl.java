@@ -295,6 +295,70 @@ public class EmailServiceImpl implements IEmailService {
         }
     }
 
+    @Override
+    @Async
+    public void sendSuspiciousLoginWarningEmail(User user, String ipAddress, String userAgentInfo) {
+        String dateStr = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy à HH:mm").format(java.time.LocalDateTime.now());
+        String htmlContent = """
+            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+            <div style="max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px">
+              <h2 style="color:#d97706;margin-top:0">⚠️ Tentatives de connexion suspectes détectées</h2>
+              <p>Bonjour <strong>%s</strong>,</p>
+              <p>Nous avons détecté plusieurs tentatives de connexion échouées (3 échecs) sur votre compte EspritConnect.</p>
+              <div style="background:#f9fafb;padding:15px;border-radius:6px;margin:20px 0;border-left:4px solid #d97706">
+                <p style="margin:5px 0"><strong>Date et Heure :</strong> %s</p>
+                <p style="margin:5px 0"><strong>Adresse IP :</strong> %s</p>
+                <p style="margin:5px 0"><strong>Navigateur / Système :</strong> %s</p>
+              </div>
+              <p>Si vous êtes à l'origine de ces tentatives, aucune action supplémentaire n'est requise.</p>
+              <p><strong>Dans le cas contraire</strong>, votre compte fait peut-être l'objet d'une tentative d'accès non autorisée. Nous vous conseillons vivement de modifier votre mot de passe immédiatement.</p>
+              <p style="text-align:center;margin-top:25px">
+                <a href="%s/forgot-password" style="background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block">Réinitialiser mon mot de passe</a>
+              </p>
+            </div>
+            </body></html>
+            """.formatted(user.getNom(), dateStr, ipAddress, userAgentInfo, frontendUrl);
+
+        try {
+            sendHtmlEmail(user.getEmail(), "⚠️ Alerte de sécurité : Tentatives de connexion suspectes — EspritConnect", htmlContent);
+            log.info("Suspicious login warning email sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send suspicious login warning email to: {}", user.getEmail(), e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendAccountLockoutEmail(User user, String ipAddress, String userAgentInfo) {
+        String dateStr = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy à HH:mm").format(java.time.LocalDateTime.now());
+        String htmlContent = """
+            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+            <div style="max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px">
+              <h2 style="color:#dc2626;margin-top:0">🔒 Votre compte EspritConnect a été temporairement verrouillé</h2>
+              <p>Bonjour <strong>%s</strong>,</p>
+              <p>Votre compte a été temporairement verrouillé pour une durée de <strong>15 minutes</strong> suite à 5 tentatives de connexion infructueuses.</p>
+              <div style="background:#f9fafb;padding:15px;border-radius:6px;margin:20px 0;border-left:4px solid #dc2626">
+                <p style="margin:5px 0"><strong>Date de verrouillage :</strong> %s</p>
+                <p style="margin:5px 0"><strong>Adresse IP :</strong> %s</p>
+                <p style="margin:5px 0"><strong>Navigateur / Système :</strong> %s</p>
+              </div>
+              <p>Si vous n'êtes pas à l'origine de ces tentatives de connexion, il se peut que quelqu'un tente de forcer l'accès à votre compte.</p>
+              <p>Une fois le délai de 15 minutes écoulé, vous pourrez à nouveau tenter de vous connecter ou réinitialiser votre mot de passe en cliquant ci-dessous :</p>
+              <p style="text-align:center;margin-top:25px">
+                <a href="%s/forgot-password" style="background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block">Mot de passe oublié ?</a>
+              </p>
+            </div>
+            </body></html>
+            """.formatted(user.getNom(), dateStr, ipAddress, userAgentInfo, frontendUrl);
+
+        try {
+            sendHtmlEmail(user.getEmail(), "🔒 Compte verrouillé temporairement — EspritConnect", htmlContent);
+            log.info("Account lockout email sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send account lockout email to: {}", user.getEmail(), e);
+        }
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException, UnsupportedEncodingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

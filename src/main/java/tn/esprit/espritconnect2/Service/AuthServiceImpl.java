@@ -36,6 +36,7 @@ import tn.esprit.espritconnect2.security.MfaRateLimiter;
 import tn.esprit.espritconnect2.security.UserAgentParser;
 import tn.esprit.espritconnect2.Entitie.PasswordResetToken;
 import tn.esprit.espritconnect2.Repository.PasswordResetTokenRepository;
+import tn.esprit.espritconnect2.exception.AccountLockedException;
 
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -80,13 +81,33 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
-    @Transactional
     public AuthResponse login(LoginRequest req) {
+        Optional<User> userOpt = userRepository.findByEmail(req.getEmail());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (user.isAccountLocked()) {
+                long secondsLocked = java.time.Duration.between(LocalDateTime.now(), user.getAccountLockedUntil()).getSeconds();
+                if (secondsLocked > 0) {
+                    throw new AccountLockedException("Votre compte est temporairement verrouillé suite à plusieurs tentatives de connexion échouées.", 0, secondsLocked);
+                } else {
+                    user.setFailedLoginAttempts(0);
+                    user.setAccountLockedUntil(null);
+                    userRepository.save(user);
+                }
+            }
+        }
+
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
 
             User user = (User) auth.getPrincipal();
+
+            if (user.getFailedLoginAttempts() > 0 || user.getAccountLockedUntil() != null) {
+                user.setFailedLoginAttempts(0);
+                user.setAccountLockedUntil(null);
+                userRepository.save(user);
+            }
 
             // 2FA : utilisateurs uniquement (étudiant, alumni, enseignant — pas admin ni entreprise)
             boolean isMfaApplicable = user.isTwoFactorEnabled() && user.getRole().isMfaEligible();
@@ -132,9 +153,38 @@ public class AuthServiceImpl implements IAuthService {
                     .build();
 
         } catch (BadCredentialsException e) {
-            userRepository.findByEmail(req.getEmail()).ifPresent(user -> {
-                loginHistoryService.recordLoginAttempt(user, getClientIp(request), request.getHeader("User-Agent"), "FAILED_PASSWORD");
-            });
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                int attempts = user.getFailedLoginAttempts() + 1;
+                user.setFailedLoginAttempts(attempts);
+
+                String ip = getClientIp(request);
+                String userAgent = request.getHeader("User-Agent");
+                String browserOs = "Inconnu";
+                if (userAgent != null) {
+                    try {
+                        var parsedUA = userAgentParser.parse(userAgent);
+                        browserOs = parsedUA.browser + " sur " + parsedUA.os;
+                    } catch (Exception uaEx) {
+                        browserOs = userAgent;
+                    }
+                }
+
+                if (attempts == 3) {
+                    emailService.sendSuspiciousLoginWarningEmail(user, ip, browserOs);
+                } else if (attempts >= 5) {
+                    user.setAccountLockedUntil(LocalDateTime.now().plusMinutes(15));
+                    userRepository.save(user);
+                    emailService.sendAccountLockoutEmail(user, ip, browserOs);
+                    loginHistoryService.recordLoginAttempt(user, ip, userAgent, "FAILED_PASSWORD_LOCKOUT");
+                    throw new AccountLockedException("Votre compte est temporairement verrouillé pour 15 minutes.", 0, 15 * 60);
+                }
+
+                userRepository.save(user);
+                loginHistoryService.recordLoginAttempt(user, ip, userAgent, "FAILED_PASSWORD");
+                int remaining = Math.max(0, 5 - attempts);
+                throw new BadCredentialsException("Email ou mot de passe incorrect. Tentatives restantes : " + remaining);
+            }
             throw new BadCredentialsException("Email ou mot de passe incorrect.");
         } catch (EmailNotVerifiedException e) {
             userRepository.findByEmail(req.getEmail()).ifPresent(user -> {
@@ -150,7 +200,6 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
-    @Transactional
     public AuthResponse verify2faLogin(TwoFactorVerificationRequest verifyReq, String ipAddress, String userAgent) {
         if (!jwtUtils.validateMfaPendingToken(verifyReq.getMfaPendingToken(), verifyReq.getEmail())) {
             throw new BadCredentialsException("Session 2FA expirée. Reconnectez-vous avec votre email et mot de passe.");
