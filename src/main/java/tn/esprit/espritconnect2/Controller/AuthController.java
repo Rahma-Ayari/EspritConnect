@@ -81,6 +81,16 @@ public class AuthController {
                     .body(Map.of("message", e.getMessage()));
         }
     }
+    @PostMapping("/google-login")
+    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleLoginRequest req) {
+        try {
+            AuthResponse response = authService.googleLogin(req.getIdToken());
+            return ResponseEntity.ok(response);
+        } catch (BadCredentialsException | org.springframework.security.authentication.DisabledException e) {
+            return ResponseEntity.status(401)
+                    .body(Map.of("message", e.getMessage()));
+        }
+    }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {

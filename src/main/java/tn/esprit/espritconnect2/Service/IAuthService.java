@@ -14,4 +14,5 @@ public interface IAuthService {
     RegisterResponse registerEnterprise(EnterpriseRegisterRequest req, MultipartFile document);
     void requestPasswordReset(String email);
     void resetPassword(String token, String newPassword);
+    AuthResponse googleLogin(String idToken);
 }
