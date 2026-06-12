@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.List;
 import java.util.Map;
 import tn.esprit.espritconnect2.Repository.UserDeviceRepository;
+import tn.esprit.espritconnect2.exception.AccountLockedException;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -48,9 +49,30 @@ public class AuthController {
         try {
             AuthResponse response = authService.login(req);
             return ResponseEntity.ok(response);
+        } catch (AccountLockedException e) {
+            return ResponseEntity.status(423) // Locked
+                    .body(Map.of(
+                            "message", e.getMessage(),
+                            "code", "ACCOUNT_LOCKED",
+                            "remainingAttempts", e.getRemainingAttempts(),
+                            "lockoutSeconds", e.getLockoutSeconds()
+                    ));
         } catch (BadCredentialsException e) {
+            int remainingAttempts = 5;
+            String msg = e.getMessage();
+            if (msg.contains("Tentatives restantes :")) {
+                try {
+                    String parts[] = msg.split("Tentatives restantes : ");
+                    remainingAttempts = Integer.parseInt(parts[1].trim());
+                } catch (Exception ex) {
+                    // fallback
+                }
+            }
             return ResponseEntity.status(401)
-                    .body(Map.of("message", e.getMessage()));
+                    .body(Map.of(
+                            "message", msg,
+                            "remainingAttempts", remainingAttempts
+                    ));
         } catch (EmailNotVerifiedException e) {
             return ResponseEntity.status(403)
                     .body(Map.of("message", e.getMessage(), "code", "EMAIL_NOT_VERIFIED"));
@@ -285,5 +307,32 @@ public class AuthController {
                 "status", h.getStatus()
         )).toList();
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "L'email est requis."));
+        }
+        authService.requestPasswordReset(email);
+        return ResponseEntity.ok(Map.of("message", "Si cet email correspond à un compte existant, un lien de réinitialisation vous a été envoyé."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        
+        if (token == null || token.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Le jeton et le nouveau mot de passe sont requis."));
+        }
+
+        try {
+            authService.resetPassword(token, newPassword);
+            return ResponseEntity.ok(Map.of("message", "Votre mot de passe a été réinitialisé avec succès."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 }

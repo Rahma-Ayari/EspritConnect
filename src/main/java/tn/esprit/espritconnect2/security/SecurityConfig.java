@@ -60,7 +60,9 @@ public class SecurityConfig {
                         "/api/auth/verify-2fa-login",
                         "/api/auth/register-enterprise",
                         "/api/auth/verify-email",
-                        "/api/auth/resend-verification-email"
+                        "/api/auth/resend-verification-email",
+                        "/api/auth/forgot-password",
+                        "/api/auth/reset-password"
                 ).permitAll()
                 .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers("/api/offres/public/**").permitAll()

@@ -111,6 +111,21 @@ public class User implements UserDetails {
     @Builder.Default
     private List<String> backupCodes = new ArrayList<>();
 
+    @Column(name = "failed_login_attempts")
+    @Builder.Default
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "account_locked_until")
+    private LocalDateTime accountLockedUntil;
+
+    public boolean isAccountLocked() {
+        return accountLockedUntil != null && accountLockedUntil.isAfter(LocalDateTime.now());
+    }
+
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts != null ? failedLoginAttempts : 0;
+    }
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
