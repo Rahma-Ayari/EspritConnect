@@ -130,13 +130,8 @@ public class EmailServiceImpl implements IEmailService {
             return;
         }
 
-        Context context = new Context(Locale.FRENCH);
-        context.setVariable("userName", user.getNom());
-        context.setVariable("loginUrl", frontendUrl + "/login");
-
-        String htmlContent = templateEngine.process("email/user-approved", context);
-
         try {
+            String htmlContent = buildApprovalEmailContent(user);
             sendHtmlEmail(user.getEmail(), "Votre compte EspritConnect a été approuvé", htmlContent);
             log.info("Approval notification sent to user: {}", user.getEmail());
         } catch (Exception e) {
@@ -152,18 +147,48 @@ public class EmailServiceImpl implements IEmailService {
             return;
         }
 
-        Context context = new Context(Locale.FRENCH);
-        context.setVariable("userName", user.getNom());
-        context.setVariable("contactEmail", "support@esprit.tn");
-
-        String htmlContent = templateEngine.process("email/user-declined", context);
-
         try {
-            sendHtmlEmail(user.getEmail(), "Votre demande d'inscription EspritConnect", htmlContent);
+            String htmlContent = buildDeclineEmailContent(user);
+            sendHtmlEmail(user.getEmail(), "Votre demande d'inscription EspritConnect a été refusée", htmlContent);
             log.info("Decline notification sent to user: {}", user.getEmail());
         } catch (Exception e) {
             log.error("Failed to send decline notification to user: {}", user.getEmail(), e);
         }
+    }
+
+    private String buildApprovalEmailContent(User user) {
+        String loginUrl = frontendUrl + "/login";
+        return """
+            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+            <div style="max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px">
+              <h2 style="color:#16a34a;margin-top:0">Votre compte a été approuvé</h2>
+              <p>Bonjour <strong>%s</strong>,</p>
+              <p>Bonne nouvelle ! Votre demande d'inscription sur <strong>EspritConnect</strong> a été acceptée par un administrateur.</p>
+              <p>Vous pouvez dès maintenant vous connecter à la plateforme :</p>
+              <p style="text-align:center;margin-top:25px">
+                <a href="%s" style="background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block">Se connecter</a>
+              </p>
+              <p style="color:#666;font-size:12px">Si le bouton ne fonctionne pas, copiez ce lien : %s</p>
+              <p style="color:#666;font-size:12px;margin-top:20px">Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+            </div>
+            </body></html>
+            """.formatted(user.getNom(), loginUrl, loginUrl);
+    }
+
+    private String buildDeclineEmailContent(User user) {
+        String contactEmail = "support@esprit.tn";
+        return """
+            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+            <div style="max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px">
+              <h2 style="color:#dc2626;margin-top:0">Votre demande d'inscription a été refusée</h2>
+              <p>Bonjour <strong>%s</strong>,</p>
+              <p>Nous vous informons que votre demande d'inscription sur <strong>EspritConnect</strong> n'a pas été acceptée par un administrateur.</p>
+              <p>Si vous pensez qu'il s'agit d'une erreur ou si vous souhaitez obtenir plus d'informations, vous pouvez contacter notre équipe à l'adresse :</p>
+              <p><a href="mailto:%s" style="color:#dc2626;font-weight:bold">%s</a></p>
+              <p style="color:#666;font-size:12px;margin-top:20px">Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+            </div>
+            </body></html>
+            """.formatted(user.getNom(), contactEmail, contactEmail);
     }
 
     @Override
