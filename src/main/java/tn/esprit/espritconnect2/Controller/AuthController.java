@@ -320,12 +320,8 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        if (email == null || email.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "L'email est requis."));
-        }
-        authService.requestPasswordReset(email);
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest body) {
+        authService.requestPasswordReset(body.getEmail(), body.getCaptchaId(), body.getCaptchaToken());
         return ResponseEntity.ok(Map.of("message", "Si cet email correspond à un compte existant, un lien de réinitialisation vous a été envoyé."));
     }
 

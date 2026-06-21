@@ -71,6 +71,7 @@ public class AuthServiceImpl implements IAuthService {
     private final HttpServletRequest request;
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final ICaptchaService captchaService;
     
     @Value("${app.frontend.url:http://localhost:4200}")
     private String frontendUrl;
@@ -91,6 +92,8 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     public AuthResponse login(LoginRequest req) {
+        captchaService.validateForAuth(req.getCaptchaId(), req.getCaptchaToken(), getClientIp(request));
+
         Optional<User> userOpt = userRepository.findByEmail(req.getEmail());
         if (userOpt.isPresent()) {
             User user = userOpt.get();
@@ -290,6 +293,8 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     @Transactional
     public RegisterResponse register(RegisterRequest req) {
+        captchaService.validateForAuth(req.getCaptchaId(), req.getCaptchaToken(), getClientIp(request));
+
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("Un compte avec cet email existe déjà.");
         }
@@ -504,7 +509,9 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     @Transactional
-    public void requestPasswordReset(String email) {
+    public void requestPasswordReset(String email, Long captchaId, String captchaToken) {
+        captchaService.validateForAuth(captchaId, captchaToken, getClientIp(request));
+
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
             return; // Fail silently for security

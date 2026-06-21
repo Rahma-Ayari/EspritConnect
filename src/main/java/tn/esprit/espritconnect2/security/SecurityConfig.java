@@ -63,7 +63,8 @@ public class SecurityConfig {
                         "/api/auth/verify-email",
                         "/api/auth/resend-verification-email",
                         "/api/auth/forgot-password",
-                        "/api/auth/reset-password"
+                        "/api/auth/reset-password",
+                        "/api/captcha/**"
                 ).permitAll()
                 .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers("/api/offres/public/**").permitAll()

@@ -25,6 +25,15 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(CaptchaVerificationException.class)
+    public ResponseEntity<Map<String, Object>> handleCaptcha(CaptchaVerificationException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", ex.getMessage());
+        body.put("code", ex.getCode());
+        return ResponseEntity.badRequest().body(body);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, Object>> handleMalformedJson(HttpMessageNotReadableException ex) {
         String message = "Corps de requête invalide.";
