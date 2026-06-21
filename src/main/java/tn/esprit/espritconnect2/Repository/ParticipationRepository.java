@@ -13,5 +13,8 @@ public interface ParticipationRepository extends JpaRepository<Participation, Lo
     boolean existsByUserIdAndEvenementIdEvenement(UUID userId, Long evenementId);
     Optional<Participation> findByUserIdAndEvenementIdEvenement(UUID userId, Long evenementId);
     List<Participation> findByUserIdOrderByCreatedAtDesc(UUID userId);
+    List<Participation> findByEvenementIdEvenementOrderByCreatedAtDesc(Long evenementId);
     long countByEvenementIdEvenement(Long evenementId);
+    List<Participation> findByEvenementIdEvenementAndStatusOrderByCreatedAtDesc(Long evenementId, String status);
+    long countByEvenementIdEvenementAndStatus(Long evenementId, String status);
 }

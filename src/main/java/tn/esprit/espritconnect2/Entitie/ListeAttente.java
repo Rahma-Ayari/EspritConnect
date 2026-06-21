@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(
-        name = "participation",
+        name = "liste_attente",
         uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "evenement_id"})
 )
 @Getter
@@ -15,12 +15,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Participation {
+public class ListeAttente {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_participation")
-    private Long idParticipation;
+    @Column(name = "id_liste_attente")
+    private Long idListeAttente;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
@@ -33,14 +33,8 @@ public class Participation {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(nullable = false, length = 30)
-    private String status = "APPROVED";
-
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now();
-        if (status == null || status.isBlank()) {
-            status = "APPROVED";
-        }
     }
 }

@@ -19,7 +19,6 @@ public class EvenementRequestDTO {
     @NotBlank(message = "Le titre est obligatoire")
     private String titre;
 
-    @NotBlank(message = "Le lieu est obligatoire")
     private String lieu;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
@@ -45,8 +44,11 @@ public class EvenementRequestDTO {
     private Integer capacite;
 
     private Boolean unlimitedParticipants;
+    private Boolean online;
     private Long typeEvenementId;
     private String imageUrl;
     private String status;
     private Long entrepriseId;
+    private Double latitude;
+    private Double longitude;
 }

@@ -1,6 +1,7 @@
 package tn.esprit.espritconnect2.bootstrap;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -36,7 +37,15 @@ public class UsersSchemaRepairService {
         if (!REPAIRED.compareAndSet(false, true)) {
             return;
         }
-        if (!isMysql(dataSource) || !tableExists("users")) {
+        try {
+            if (!isMysql(dataSource)) {
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("Cannot reach database for schema repair ({}). Skipping.", e.getMessage());
+            return;
+        }
+        if (!tableExists("users")) {
             return;
         }
         try {
@@ -64,13 +73,17 @@ public class UsersSchemaRepairService {
             try {
                 jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
             } catch (Exception ignored) {
-                // ignore
             }
         }
     }
 
     public void repairEmailVerificationTokensIfNeeded() {
-        if (!isMysql(dataSource)) {
+        try {
+            if (!isMysql(dataSource)) {
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("Cannot reach database for email_verification_tokens repair ({}). Skipping.", e.getMessage());
             return;
         }
         try {
@@ -80,7 +93,6 @@ public class UsersSchemaRepairService {
             try {
                 jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
             } catch (Exception ignored) {
-                // ignore
             }
         }
     }
@@ -256,11 +268,8 @@ public class UsersSchemaRepairService {
 
         boolean nullable = isColumnNullable(table, "user_id");
         jdbcTemplate.update("DELETE FROM `" + table + "` WHERE `" + tempCol + "` IS NULL");
-        jdbcTemplate.execute("ALTER TABLE `" + table + "` DROP COLUMN user_id");
-        jdbcTemplate.execute(
-                "ALTER TABLE `" + table + "` CHANGE `" + tempCol + "` user_id VARCHAR(36) "
-                        + (nullable ? "NULL" : "NOT NULL")
-        );
+        dropColumnIfExists(table, "user_id");
+        changeColumnToVarcharUuid(table, tempCol, "user_id", nullable);
         log.info("Migrated {}.user_id from binary UUID to VARCHAR(36)", table);
     }
 
@@ -270,6 +279,11 @@ public class UsersSchemaRepairService {
             jdbcTemplate.execute(
                     "ALTER TABLE `" + table + "` ADD COLUMN `" + tempCol + "` VARCHAR(36) NULL"
             );
+        }
+
+        if (!columnExists(table, "user_id")) {
+            recoverMissingUserIdColumn(table, tempCol);
+            return;
         }
 
         if (columnExists("users", USERS_ID_TEMP)) {
@@ -292,12 +306,61 @@ public class UsersSchemaRepairService {
 
         boolean nullable = isColumnNullable(table, "user_id");
         jdbcTemplate.update("DELETE FROM `" + table + "` WHERE `" + tempCol + "` IS NULL");
-        jdbcTemplate.execute("ALTER TABLE `" + table + "` DROP COLUMN user_id");
-        jdbcTemplate.execute(
-                "ALTER TABLE `" + table + "` CHANGE `" + tempCol + "` user_id VARCHAR(36) "
-                        + (nullable ? "NULL" : "NOT NULL")
-        );
+        if (!columnExists(table, "user_id")) {
+            recoverMissingUserIdColumn(table, tempCol);
+            return;
+        }
+        dropColumnIfExists(table, "user_id");
+        changeColumnToVarcharUuid(table, tempCol, "user_id", nullable);
         log.info("Migrated {}.user_id using users UUID mapping", table);
+    }
+
+    private void recoverMissingUserIdColumn(String table, String tempCol) {
+        if (!columnExists(table, tempCol)) {
+            log.warn("Skipping {}.user_id repair because neither user_id nor {} exists", table, tempCol);
+            return;
+        }
+
+        boolean nullable = isColumnNullable(table, tempCol);
+        changeColumnToVarcharUuid(table, tempCol, "user_id", nullable);
+        log.info("Recovered {}.user_id from {} after previous partial migration", table, tempCol);
+    }
+
+    private void dropColumnIfExists(String table, String column) {
+        try {
+            jdbcTemplate.execute("ALTER TABLE `" + table + "` DROP COLUMN " + column);
+        } catch (DataAccessException e) {
+            if (isMissingColumnError(e, column)) {
+                log.warn("Skipping drop of {}.{} because it is already absent", table, column);
+                return;
+            }
+            throw e;
+        }
+    }
+
+    private void changeColumnToVarcharUuid(String table, String fromColumn, String toColumn, boolean nullable) {
+        try {
+            jdbcTemplate.execute(
+                    "ALTER TABLE `" + table + "` CHANGE `" + fromColumn + "` " + toColumn
+                            + " VARCHAR(36) " + (nullable ? "NULL" : "NOT NULL")
+            );
+        } catch (DataAccessException e) {
+            if (isDuplicateColumnError(e, toColumn)) {
+                log.warn("Skipping rename of {}.{} to {} because target already exists", table, fromColumn, toColumn);
+                return;
+            }
+            throw e;
+        }
+    }
+
+    private boolean isMissingColumnError(DataAccessException exception, String column) {
+        String message = exception.getMostSpecificCause().getMessage();
+        return message != null && message.contains("Key column '" + column + "' doesn't exist in table");
+    }
+
+    private boolean isDuplicateColumnError(DataAccessException exception, String column) {
+        String message = exception.getMostSpecificCause().getMessage();
+        return message != null && message.contains("Duplicate column name '" + column + "'");
     }
 
     private void populateVarcharUuidFromBinary(String table, String binaryColumn, String varcharColumn) {

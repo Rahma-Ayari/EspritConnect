@@ -10,13 +10,12 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ParticipationDTO {
-    private Long idParticipation;
+public class WaitingListDTO {
+    private Long idListeAttente;
     private UUID userId;
     private String userNom;
     private String userEmail;
     private Long evenementId;
+    private String evenementTitre;
     private LocalDateTime createdAt;
-    private String status;
-    private EvenementResponseDTO evenement;
 }

@@ -25,51 +25,64 @@ public class Evenement {
     private Long idEvenement;
 
     @NotBlank(message = "Le titre est obligatoire")
+    @Column(name = "titre", nullable = false)
     private String titre;
 
-    @NotBlank(message = "Le lieu est obligatoire")
+    @Column(name = "lieu")
     private String lieu;
 
     @NotNull(message = "La date de l'evenement est obligatoire")
     @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "date_evenement")
     private Date dateEvenement;
 
     @NotNull(message = "La date de debut est obligatoire")
+    @Column(name = "date_debut", nullable = false)
     private LocalDate dateDebut;
 
     @NotNull(message = "La date de fin est obligatoire")
+    @Column(name = "date_fin", nullable = false)
     private LocalDate dateFin;
 
     @NotNull(message = "L'heure de debut est obligatoire")
+    @Column(name = "heure_debut", nullable = false)
     private LocalTime heureDebut;
 
     @NotNull(message = "L'heure de fin est obligatoire")
+    @Column(name = "heure_fin", nullable = false)
     private LocalTime heureFin;
 
+    @Column(name = "duree_minutes")
     private Integer dureeMinutes;
 
     @Positive(message = "La capacite doit etre positive")
+    @Column(name = "capacite")
     private Integer capacite;
 
-    @Column(nullable = false)
+    @Column(name = "unlimited_participants", nullable = false)
     private Boolean unlimitedParticipants = false;
 
-    @Column(nullable = false)
+    @Column(name = "nombre_participants", nullable = false)
     private Integer nombreParticipants = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "type_evenement_id")
     private TypeEvenement typeEvenement;
 
+    @Column(name = "type_evenement")
     private String type;
 
-    @Column(length = 1024)
+    @Column(length = 1024, name = "image_url")
     private String imageUrl;
 
-    @Column(length = 30)
+    @Column(length = 30, name = "status")
     private String status;
 
-    @ManyToOne
+    @Column(nullable = true, name = "online")
+    private Boolean online = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "entreprise_id")
     private Entreprise entreprise;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -78,4 +91,10 @@ public class Evenement {
 
     @OneToMany(mappedBy = "evenement", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Participation> participations;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
 }

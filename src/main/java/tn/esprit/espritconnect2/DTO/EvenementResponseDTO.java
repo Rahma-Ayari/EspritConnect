@@ -36,6 +36,7 @@ public class EvenementResponseDTO {
     private Integer dureeMinutes;
     private Integer capacite;
     private Boolean unlimitedParticipants;
+    private Boolean online;
     private Integer nombreParticipants;
     private Integer placesRestantes;
     private Long typeEvenementId;
@@ -48,4 +49,6 @@ public class EvenementResponseDTO {
     private String ownerNom;
     private Boolean participated;
     private Boolean ownedByCurrentUser;
+    private Double latitude;
+    private Double longitude;
 }
