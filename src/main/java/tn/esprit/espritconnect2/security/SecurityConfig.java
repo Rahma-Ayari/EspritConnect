@@ -57,12 +57,14 @@ public class SecurityConfig {
                 .requestMatchers(
                         "/api/auth/login",
                         "/api/auth/register",
+                        "/api/auth/google-login",
                         "/api/auth/verify-2fa-login",
                         "/api/auth/register-enterprise",
                         "/api/auth/verify-email",
                         "/api/auth/resend-verification-email",
                         "/api/auth/forgot-password",
-                        "/api/auth/reset-password"
+                        "/api/auth/reset-password",
+                        "/api/captcha/**"
                 ).permitAll()
                 .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers("/api/offres/public/**").permitAll()

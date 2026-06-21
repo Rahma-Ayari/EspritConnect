@@ -46,4 +46,7 @@ public class RegisterRequest {
     private String siteWeb;
     private String descriptionEntreprise;
     private String documentJustificatif;
+
+    private Long captchaId;
+    private String captchaToken;
 }
