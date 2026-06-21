@@ -1,14 +1,22 @@
 # Copy to application-local.properties (same folder). That file is gitignored — never commit real keys.
 
 # ========== Brevo SMTP (single mail provider) ==========
-BREVO_SMTP_USERNAME=your-login@smtp-brevo.com
-BREVO_SMTP_PASSWORD=xsmtpsib-your-brevo-smtp-key
-BREVO_MAIL_FROM=your-verified-sender@yourdomain.com
-spring.mail.username=${BREVO_SMTP_USERNAME}
-spring.mail.password=${BREVO_SMTP_PASSWORD}
-spring.mail.properties.mail.smtp.from=${BREVO_MAIL_FROM}
-app.mail.from=${BREVO_MAIL_FROM}
+# BREVO_SMTP_USERNAME=your-login@smtp-brevo.com
+# BREVO_SMTP_PASSWORD=REPLACE_WITH_BREVO_SMTP_PASSWORD
+# BREVO_MAIL_FROM=your-verified-sender@yourdomain.com
+# spring.mail.username=${BREVO_SMTP_USERNAME}
+# spring.mail.password=${BREVO_SMTP_PASSWORD}
+# spring.mail.properties.mail.smtp.from=${BREVO_MAIL_FROM}
+# app.mail.from=${BREVO_MAIL_FROM}
+
+# ========== Jobs AI (Gemini / OpenAI — server-side only) ==========
+# app.jobs-ai.provider=gemini
+# app.jobs-ai.gemini-api-key=your-gemini-key
+# app.jobs-ai.openai-api-key=your-openai-key
 
 # ========== Groq chatbot (optional) ==========
 # Get a free key: https://console.groq.com/keys
-#app.chatbot.api-key=your-groq-api-key
+# app.chatbot.provider=openai
+# app.chatbot.api-key=gsk_your_groq_key_here
+# app.chatbot.model=llama-3.3-70b-versatile
+# app.chatbot.openai-base-url=https://api.groq.com/openai/v1

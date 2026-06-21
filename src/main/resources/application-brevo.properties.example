@@ -1,0 +1,14 @@
+# Copy to application-brevo.properties (same folder) OR put these in application-local.properties.
+# Both brevo.properties and application-local.properties are gitignored — never commit real keys.
+
+spring.mail.host=smtp-relay.brevo.com
+spring.mail.port=587
+spring.mail.username=your-login@smtp-brevo.com
+spring.mail.password=REPLACE_WITH_BREVO_SMTP_PASSWORD
+spring.mail.protocol=smtp
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+spring.mail.properties.mail.smtp.from=your-verified-sender@yourdomain.com
+
+app.mail.from=your-verified-sender@yourdomain.com

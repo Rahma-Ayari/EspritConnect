@@ -75,6 +75,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/registration/settings").permitAll()
                 // DEV: open job APIs while building entreprise job dashboard (tighten before prod)
                 .requestMatchers("/api/offres/**").permitAll()
+                .requestMatchers("/api/ai/**").permitAll()
                 .requestMatchers("/api/matchings/**").permitAll()
                 .requestMatchers("/api/candidatures/**").permitAll()
                 .requestMatchers("/api/etudiants/me", "/api/alumni/me").authenticated()

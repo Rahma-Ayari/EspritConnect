@@ -345,6 +345,14 @@ public class JobOfferService {
         offre.setResponsibilities(dto.getResponsibilities());
         offre.setRequirements(dto.getRequirements());
         offre.setBenefits(dto.getBenefits());
+
+        if (dto.getStatus() != null && !dto.getStatus().isBlank()) {
+            try {
+                offre.setStatutOfrre(Status.valueOf(dto.getStatus().trim().toUpperCase(Locale.ROOT)));
+            } catch (IllegalArgumentException ignored) {
+                // keep existing status when value is unknown
+            }
+        }
         
         if (dto.getEntrepriseId() != null) {
             Entreprise entreprise = entrepriseRepository.findById(dto.getEntrepriseId())

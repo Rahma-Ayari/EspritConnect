@@ -9,6 +9,7 @@ import tn.esprit.espritconnect2.DTO.*;
 import tn.esprit.espritconnect2.Service.JobAIService;
 import tn.esprit.espritconnect2.Service.JobImportService;
 import tn.esprit.espritconnect2.Service.JobOfferService;
+import tn.esprit.espritconnect2.ai.JobsRecruitmentAiService;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,9 @@ public class JobOfferController {
 
     @Autowired
     private JobImportService jobImportService;
+
+    @Autowired
+    private JobsRecruitmentAiService jobsRecruitmentAiService;
 
     /**
      * Get all jobs with filtering
@@ -327,6 +331,9 @@ public class JobOfferController {
             } else {
                 response = jobImportService.importFromText(text, source);
             }
+            if (jobsRecruitmentAiService.isConfigured() && !isWeakHeuristicImport(response)) {
+                response = enhanceImportWithAi(response, text, url, source);
+            }
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -334,5 +341,63 @@ public class JobOfferController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("message", "Import failed: " + e.getMessage()));
         }
+    }
+
+    private ImportJobResponseDTO enhanceImportWithAi(ImportJobResponseDTO heuristic,
+                                                     String text, String url, String source) {
+        String raw = text;
+        if (raw == null || raw.isBlank()) {
+            raw = heuristic.getTitle() + "\n" + heuristic.getDescription() + "\n"
+                    + heuristic.getRequirements() + "\n" + heuristic.getResponsibilities();
+        }
+        AiImportExtractRequestDTO aiReq = new AiImportExtractRequestDTO();
+        aiReq.setRawContent(raw);
+        aiReq.setSource(source != null ? source : (url != null ? "URL" : "TEXT"));
+        AiImportExtractResponseDTO ai = jobsRecruitmentAiService.extractImport(aiReq);
+        if (ai.getTitle() != null && !ai.getTitle().isBlank()) {
+            heuristic.setTitle(ai.getTitle());
+        }
+        if (ai.getDescription() != null && !ai.getDescription().isBlank()) {
+            heuristic.setDescription(ai.getDescription());
+        }
+        if (ai.getResponsibilities() != null && !ai.getResponsibilities().isBlank()) {
+            heuristic.setResponsibilities(ai.getResponsibilities());
+        }
+        if (ai.getRequirements() != null && !ai.getRequirements().isBlank()) {
+            heuristic.setRequirements(ai.getRequirements());
+        }
+        if (ai.getSkills() != null && !ai.getSkills().isEmpty()) {
+            heuristic.setSkills(ai.getSkills());
+        }
+        if (ai.getLocation() != null && !ai.getLocation().isBlank()) {
+            heuristic.setLocation(ai.getLocation());
+        }
+        if (ai.getContractType() != null && !ai.getContractType().isBlank()) {
+            heuristic.setContractType(ai.getContractType());
+        }
+        if (ai.getBenefits() != null && !ai.getBenefits().isBlank()) {
+            heuristic.setBenefits(ai.getBenefits());
+        }
+        if (ai.getExperienceLevel() != null && !ai.getExperienceLevel().isBlank()) {
+            heuristic.setExperienceLevel(ai.getExperienceLevel());
+        }
+        if (heuristic.getExtractedData() == null) {
+            heuristic.setExtractedData(new java.util.HashMap<>());
+        }
+        heuristic.getExtractedData().put("aiProvider", ai.getProvider());
+        heuristic.getExtractedData().put("experienceLevel", ai.getExperienceLevel());
+        heuristic.getExtractedData().put("aiCached", ai.isCached());
+        return heuristic;
+    }
+
+    private boolean isWeakHeuristicImport(ImportJobResponseDTO response) {
+        if (response == null) {
+            return true;
+        }
+        String description = response.getDescription() != null ? response.getDescription().toLowerCase() : "";
+        return description.contains("see what you're missing")
+                || description.contains("similar jobs on linkedin")
+                || description.contains("see this and similar jobs on linkedin")
+                || (response.getDescription() != null && response.getDescription().length() < 200);
     }
 }
