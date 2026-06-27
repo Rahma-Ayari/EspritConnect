@@ -288,7 +288,12 @@ public class ProfilServiceImpl implements IProfilService {
     @Override
     public ProfilResponseDTO getProfilByUserId(String userId) {
         Profil profil = profilRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Profil introuvable pour le userId : " + userId));
+                .orElse(null);
+        if (profil == null) {
+            // Si le profil n'existe pas encore, on génère un profil par défaut 
+            // basé sur les informations d'inscription de l'utilisateur (fallback)
+            return getCurrentUserProfile(userId);
+        }
         return toDTO(profil);
     }
 
