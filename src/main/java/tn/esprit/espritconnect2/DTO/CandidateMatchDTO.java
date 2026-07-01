@@ -18,6 +18,9 @@ public class CandidateMatchDTO {
     private String filiere;
     private String niveau;
     private Float scoreCompatibilite;
+    private Integer skillsScore;
+    private Integer experienceScore;
+    private Integer educationScore;
     private List<String> skillsMatched;
     private List<String> recommandations;
     private String lettreMotivationExcerpt;

@@ -9,6 +9,12 @@ spring.mail.password=${BREVO_SMTP_PASSWORD}
 spring.mail.properties.mail.smtp.from=${BREVO_MAIL_FROM}
 app.mail.from=${BREVO_MAIL_FROM}
 
+# ========== Jobs AI (Gemini / OpenAI — server-side only) ==========
+# GEMINI_API_KEY=your-gemini-key
+# OPENAI_API_KEY=your-openai-key
+# app.jobs-ai.gemini-api-key=
+# app.jobs-ai.openai-api-key=
+
 # ========== Groq chatbot (optional) ==========
 # Get a free key: https://console.groq.com/keys
-#app.chatbot.api-key=your-groq-api-key
+# app.chatbot.api-key=gsk_your_groq_key_here
