@@ -5,19 +5,19 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "forum_group_member")
+@Table(name = "forum_discussion_member")
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
-public class ForumGroupMember {
+public class ForumDiscussionMember {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "group_id")
-    private ForumGroup group;
+    @JoinColumn(name = "discussion_id")
+    private ForumDiscussion discussion;
 
     @Column(nullable = false, length = 100)
     private String userEmail;
@@ -27,17 +27,17 @@ public class ForumGroupMember {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private GroupRole role;
+    private DiscussionRole role;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private MemberStatus status;
 
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private LocalDateTime joinedAt;
 
     @PrePersist
-    protected void onCreate() {
+    protected void onJoin() {
         joinedAt = LocalDateTime.now();
     }
 }
