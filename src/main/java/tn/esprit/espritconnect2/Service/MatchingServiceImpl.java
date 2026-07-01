@@ -1,13 +1,17 @@
 package tn.esprit.espritconnect2.Service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.espritconnect2.DTO.CandidateMatchDTO;
 import tn.esprit.espritconnect2.DTO.MatchingResponseDTO;
 import tn.esprit.espritconnect2.Entitie.Candidature;
 import tn.esprit.espritconnect2.Entitie.Competence;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
+import tn.esprit.espritconnect2.Entitie.ExperienceLevel;
 import tn.esprit.espritconnect2.Entitie.Matching;
+import tn.esprit.espritconnect2.Entitie.Niveau;
 import tn.esprit.espritconnect2.Entitie.Offre;
 import tn.esprit.espritconnect2.exception.NotFoundException;
 import tn.esprit.espritconnect2.Repository.CandidatureRepository;
@@ -17,7 +21,7 @@ import tn.esprit.espritconnect2.Repository.OffreRepository;
 
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -25,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MatchingServiceImpl implements IMatchingService {
 
     private final MatchingRepository matchingRepository;
@@ -33,28 +38,16 @@ public class MatchingServiceImpl implements IMatchingService {
     private final CandidatureRepository candidatureRepository;
 
     @Override
+    @Transactional
     public MatchingResponseDTO computeMatching(Long etudiantId, Long offreId) {
         Etudiant etudiant = etudiantRepository.findById(etudiantId)
                 .orElseThrow(() -> new NotFoundException("Etudiant introuvable avec id: " + etudiantId));
         Offre offre = offreRepository.findById(offreId)
                 .orElseThrow(() -> new NotFoundException("Offre introuvable avec id: " + offreId));
 
-        Set<String> studentSkills = etudiant.getCompetences() == null
-                ? Set.of()
-                : etudiant.getCompetences().stream()
-                .map(Competence::getLibelle)
-                .map(this::normalize)
-                .filter(s -> !s.isBlank())
-                .collect(Collectors.toSet());
-
-        Set<String> offerKeywords = extractKeywords(buildOfferText(offre));
-
-        List<String> missingSkills = offerKeywords.stream()
-                .filter(k -> !studentSkills.contains(k))
-                .sorted()
-                .toList();
-
-        float score = calculateScore(studentSkills, offerKeywords, etudiant, offre);
+        ProfileMatchScore profileScore = computeProfileMatch(etudiant, offre);
+        List<String> missingSkills = profileScore.missingSkills();
+        float score = profileScore.overall();
         List<String> recommendations = buildRecommendations(missingSkills);
 
         Matching matching = matchingRepository
@@ -66,8 +59,8 @@ public class MatchingServiceImpl implements IMatchingService {
         matching.setTypeMatching("ETUDIANT_OFFRE");
         matching.setDateCalcul(new Date());
         matching.setScoreCompatibilite(score);
-        matching.setCompetencesRequises(missingSkills);
-        matching.setRecommandations(recommendations);
+        matching.setCompetencesRequises(new ArrayList<>(missingSkills));
+        matching.setRecommandations(new ArrayList<>(recommendations));
 
         return toDTO(matchingRepository.save(matching));
     }
@@ -115,49 +108,34 @@ public class MatchingServiceImpl implements IMatchingService {
     }
 
     @Override
+    @Transactional
     public List<CandidateMatchDTO> getRankedCandidatesForOffre(Long offreId, int limit) {
         if (!offreRepository.existsById(offreId)) {
             throw new NotFoundException("Offre introuvable avec id: " + offreId);
         }
         int safeLimit = Math.max(limit, 1);
-        List<Candidature> candidatures = candidatureRepository.findByOffreIdOffre(offreId);
+        Offre offre = offreRepository.findById(offreId)
+                .orElseThrow(() -> new NotFoundException("Offre introuvable avec id: " + offreId));
+        List<Candidature> candidatures = candidatureRepository.findByOffreIdWithEtudiant(offreId);
         if (candidatures.isEmpty()) {
             return List.of();
         }
 
         List<CandidateMatchDTO> ranked = new ArrayList<>();
+
         for (Candidature candidature : candidatures) {
-            Etudiant etudiant = candidature.getEtudiant();
-            if (etudiant == null) {
-                continue;
+            try {
+                CandidateMatchDTO dto = buildCandidateMatch(candidature, offre);
+                if (dto != null) {
+                    ranked.add(dto);
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to rank candidature {} for offre {}: {}",
+                        candidature.getId(), offreId, ex.getMessage());
             }
-            MatchingResponseDTO match = computeMatching(etudiant.getIdEtudiant(), offreId);
-            candidature.setScoreMatch(match.getScoreCompatibilite());
-            candidatureRepository.save(candidature);
-
-            Set<String> offerKeywords = extractKeywords(buildOfferText(offreRepository.findById(offreId).orElseThrow()));
-            Set<String> studentSkills = etudiant.getCompetences() == null ? Set.of() : etudiant.getCompetences().stream()
-                    .map(Competence::getLibelle)
-                    .map(this::normalize)
-                    .filter(s -> !s.isBlank())
-                    .collect(Collectors.toSet());
-            List<String> matched = offerKeywords.stream().filter(studentSkills::contains).sorted().toList();
-
-            ranked.add(CandidateMatchDTO.builder()
-                    .candidatureId(candidature.getId())
-                    .etudiantId(etudiant.getIdEtudiant())
-                    .etudiantNom(etudiant.getNom())
-                    .etudiantEmail(etudiant.getEmail())
-                    .filiere(etudiant.getFiliere())
-                    .niveau(etudiant.getNiveau() != null ? etudiant.getNiveau().name() : null)
-                    .scoreCompatibilite(match.getScoreCompatibilite())
-                    .skillsMatched(matched)
-                    .recommandations(match.getRecommandations())
-                    .lettreMotivationExcerpt(excerpt(candidature.getLettreMotivation()))
-                    .hasResume(candidature.getFichier() != null)
-                    .candidatureStatus(candidature.getStatutCandidature())
-                    .build());
         }
+
+        candidatureRepository.saveAll(candidatures);
 
         ranked.sort((a, b) -> Float.compare(
                 b.getScoreCompatibilite() != null ? b.getScoreCompatibilite() : 0F,
@@ -166,83 +144,204 @@ public class MatchingServiceImpl implements IMatchingService {
         return ranked.stream().limit(safeLimit).toList();
     }
 
-    private String buildOfferText(Offre offre) {
-        String skills = offre.getCompetencesRequises() == null ? "" : String.join(" ", offre.getCompetencesRequises());
-        return offre.getTitre() + " " + offre.getDescription() + " " + skills + " " + (offre.getDomaine() != null ? offre.getDomaine() : "");
+    private CandidateMatchDTO buildCandidateMatch(Candidature candidature, Offre offre) {
+        Etudiant etudiant = candidature.getEtudiant();
+        if (etudiant == null) {
+            log.warn("Candidature {} has no linked etudiant, skipping", candidature.getId());
+            return null;
+        }
+
+        ProfileMatchScore profileScore = computeProfileMatch(etudiant, offre);
+        List<String> missingSkills = profileScore.missingSkills();
+        float score = profileScore.overall();
+        List<String> recommendations = buildRecommendations(missingSkills);
+
+        candidature.setScoreMatch(score);
+        persistMatchingRecord(etudiant, offre, score, missingSkills, recommendations);
+
+        return CandidateMatchDTO.builder()
+                .candidatureId(candidature.getId())
+                .etudiantId(etudiant.getIdEtudiant())
+                .etudiantNom(etudiant.getNom())
+                .etudiantEmail(etudiant.getEmail())
+                .filiere(etudiant.getFiliere())
+                .niveau(etudiant.getNiveau() != null ? etudiant.getNiveau().name() : null)
+                .scoreCompatibilite(score)
+                .skillsScore(profileScore.skills())
+                .experienceScore(profileScore.experience())
+                .educationScore(profileScore.education())
+                .skillsMatched(profileScore.matchedSkills())
+                .recommandations(recommendations)
+                .lettreMotivationExcerpt(excerpt(candidature.getLettreMotivation()))
+                .hasResume(candidature.getFichier() != null)
+                .candidatureStatus(candidature.getStatutCandidature())
+                .build();
+    }
+
+    /**
+     * Same weighting as the student-side MatchScoreService (skills 50%, experience 30%, education 20%).
+     */
+    private ProfileMatchScore computeProfileMatch(Etudiant etudiant, Offre offre) {
+        List<String> jobSkills = collectJobSkills(offre);
+        Set<String> profileSkills = loadStudentSkills(etudiant);
+
+        List<String> matchedSkills = new ArrayList<>();
+        for (String jobSkill : jobSkills) {
+            if (skillMatchesProfile(jobSkill, profileSkills)) {
+                matchedSkills.add(jobSkill);
+            }
+        }
+
+        int skillsPercent = jobSkills.isEmpty()
+                ? 75
+                : Math.round((matchedSkills.size() * 100F) / jobSkills.size());
+
+        int experiencePercent = experienceScore(offre.getExperienceLevel(), etudiant.getNiveau());
+        int educationPercent = educationScore(offre.getDepartment(), etudiant.getFiliere());
+
+        int overall = Math.round(skillsPercent * 0.5F + experiencePercent * 0.3F + educationPercent * 0.2F);
+
+        List<String> missingSkills = jobSkills.stream()
+                .filter(js -> !skillMatchesProfile(js, profileSkills))
+                .distinct()
+                .sorted()
+                .toList();
+
+        return new ProfileMatchScore(overall, skillsPercent, experiencePercent, educationPercent, matchedSkills, missingSkills);
+    }
+
+    private List<String> collectJobSkills(Offre offre) {
+        LinkedHashSet<String> skills = new LinkedHashSet<>();
+        if (offre.getCompetencesRequises() != null) {
+            offre.getCompetencesRequises().stream()
+                    .map(this::normalize)
+                    .filter(s -> !s.isBlank())
+                    .forEach(skills::add);
+        }
+        if (offre.getTechnologies() != null) {
+            offre.getTechnologies().stream()
+                    .map(this::normalize)
+                    .filter(s -> !s.isBlank())
+                    .forEach(skills::add);
+        }
+        return new ArrayList<>(skills);
+    }
+
+    private boolean skillMatchesProfile(String jobSkill, Set<String> profileSkills) {
+        for (String profileSkill : profileSkills) {
+            if (jobSkill.contains(profileSkill) || profileSkill.contains(jobSkill)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int experienceScore(ExperienceLevel jobLevel, Niveau profileNiveau) {
+        int jobIdx = experienceLevelIndex(jobLevel);
+        int profileIdx = niveauIndex(profileNiveau);
+        int diff = Math.abs(jobIdx - profileIdx);
+        return Math.max(40, 100 - diff * 25);
+    }
+
+    private int experienceLevelIndex(ExperienceLevel level) {
+        if (level == null) {
+            return 0;
+        }
+        return switch (level) {
+            case JUNIOR -> 0;
+            case INTERMEDIATE -> 1;
+            case SENIOR -> 2;
+            case EXPERT -> 3;
+        };
+    }
+
+    private int niveauIndex(Niveau niveau) {
+        if (niveau == null) {
+            return 0;
+        }
+        return switch (niveau) {
+            case DEBUTANT -> 0;
+            case INTERMEDIAIRE -> 1;
+            case EXPERT -> 3;
+        };
+    }
+
+    private int educationScore(String department, String filiere) {
+        if (department == null || department.isBlank() || filiere == null || filiere.isBlank()) {
+            return 70;
+        }
+        String d = department.toLowerCase(Locale.ROOT);
+        String f = filiere.toLowerCase(Locale.ROOT);
+        if (d.contains("engineer") && (f.contains("info") || f.contains("gl"))) {
+            return 92;
+        }
+        if (d.contains(f) || f.contains(d)) {
+            return 88;
+        }
+        return 72;
+    }
+
+    private record ProfileMatchScore(
+            float overall,
+            int skills,
+            int experience,
+            int education,
+            List<String> matchedSkills,
+            List<String> missingSkills
+    ) {}
+
+    private void persistMatchingRecord(Etudiant etudiant, Offre offre, float score,
+                                       List<String> missingSkills, List<String> recommendations) {
+        try {
+            Matching matching = matchingRepository
+                    .findByEtudiantIdEtudiantAndOffreIdOffre(etudiant.getIdEtudiant(), offre.getIdOffre())
+                    .orElse(new Matching());
+            matching.setEtudiant(etudiant);
+            matching.setOffre(offre);
+            matching.setTypeMatching("ETUDIANT_OFFRE");
+            matching.setDateCalcul(new Date());
+            matching.setScoreCompatibilite(score);
+            matching.setCompetencesRequises(new ArrayList<>(missingSkills));
+            matching.setRecommandations(new ArrayList<>(recommendations));
+            matchingRepository.save(matching);
+        } catch (Exception ex) {
+            log.debug("Could not persist matching for etudiant {} offre {}: {}",
+                    etudiant.getIdEtudiant(), offre.getIdOffre(), ex.getMessage());
+        }
+    }
+
+    private Set<String> loadStudentSkills(Etudiant etudiant) {
+        try {
+            if (etudiant.getCompetences() == null) {
+                return Set.of();
+            }
+            return etudiant.getCompetences().stream()
+                    .map(Competence::getLibelle)
+                    .map(this::normalize)
+                    .filter(s -> !s.isBlank())
+                    .collect(Collectors.toSet());
+        } catch (Exception ex) {
+            log.debug("Could not load competences for etudiant {}: {}", etudiant.getIdEtudiant(), ex.getMessage());
+            return Set.of();
+        }
     }
 
     private String excerpt(String text) {
         if (text == null || text.isBlank()) {
-            return "Aucune lettre de motivation.";
+            return "No cover letter provided.";
         }
         String trimmed = text.trim();
         return trimmed.length() <= 160 ? trimmed : trimmed.substring(0, 157) + "...";
     }
 
-    private float calculateScore(Set<String> studentSkills, Set<String> offerKeywords, Etudiant etudiant, Offre offre) {
-        if (offerKeywords.isEmpty()) {
-            return 50F;
-        }
-
-        long overlap = offerKeywords.stream().filter(studentSkills::contains).count();
-        float skillsScore = (float) overlap / offerKeywords.size();
-
-        float filiereBonus = 0F;
-        String offerText = buildOfferText(offre).toLowerCase(Locale.ROOT);
-        if (etudiant.getFiliere() != null && offerText.contains(etudiant.getFiliere().toLowerCase(Locale.ROOT))) {
-            filiereBonus = 0.1F;
-        }
-
-        float motivationBonus = 0F;
-        String motivation = candidatureRepository.findByEtudiantIdEtudiantAndOffreIdOffre(
-                        etudiant.getIdEtudiant(), offre.getIdOffre())
-                .map(Candidature::getLettreMotivation)
-                .orElse("");
-        if (!motivation.isBlank()) {
-            long motOverlap = offerKeywords.stream()
-                    .filter(k -> motivation.toLowerCase(Locale.ROOT).contains(k))
-                    .count();
-            if (!offerKeywords.isEmpty()) {
-                motivationBonus = Math.min(0.15F, (float) motOverlap / offerKeywords.size() * 0.15F);
-            } else {
-                motivationBonus = 0.05F;
-            }
-        }
-
-        float readiness = etudiant.getScoreReadiness() == null
-                ? 0.5F
-                : Math.min(etudiant.getScoreReadiness(), 100) / 100F;
-
-        float total = (skillsScore * 0.55F) + (readiness * 0.25F) + (filiereBonus * 0.1F) + (motivationBonus * 0.1F);
-        return Math.min(100F, Math.max(0F, total * 100F));
-    }
-
     private List<String> buildRecommendations(List<String> missingSkills) {
         if (missingSkills.isEmpty()) {
-            return List.of("Votre profil correspond bien a cette offre.");
+            return List.of("Your profile is a strong match for this offer.");
         }
         return missingSkills.stream()
                 .limit(5)
-                .map(skill -> "Ameliorer la competence: " + skill)
+                .map(skill -> "Improve skill: " + skill)
                 .toList();
-    }
-
-    private Set<String> extractKeywords(String rawText) {
-        if (rawText == null) {
-            return Set.of();
-        }
-        String[] tokens = rawText.toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9\\s]", " ")
-                .split("\\s+");
-
-        Set<String> keywords = new HashSet<>();
-        for (String token : tokens) {
-            String cleaned = normalize(token);
-            if (cleaned.length() >= 3) {
-                keywords.add(cleaned);
-            }
-        }
-        return keywords;
     }
 
     private String normalize(String text) {

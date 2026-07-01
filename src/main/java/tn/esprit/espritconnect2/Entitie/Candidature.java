@@ -22,9 +22,16 @@ public class Candidature {
     private Long id;
     private Date dateCandidature;
     @Enumerated(EnumType.STRING)
+    @Column(name = "statut_candidature", length = 50)
     private Status statutCandidature;
     private String lettreMotivation;
     private Float scoreMatch;
+
+    // Easy-apply standard questions
+    private Integer yearsExperience;
+    private Boolean willingToRelocate;
+    @Temporal(TemporalType.DATE)
+    private Date availabilityDate;
 
     @ManyToOne
     private Etudiant etudiant;

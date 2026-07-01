@@ -8,6 +8,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +24,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<Map<String, Object>> handleBusiness(BusinessRuleException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        HttpStatus status = ex.getMessage() != null && ex.getMessage().toLowerCase().contains("busy")
+                ? HttpStatus.SERVICE_UNAVAILABLE
+                : HttpStatus.BAD_REQUEST;
+        return buildResponse(status, ex.getMessage());
     }
 
     @ExceptionHandler(CaptchaVerificationException.class)
@@ -58,6 +72,20 @@ public class GlobalExceptionHandler {
         body.put("error", "Validation failed");
         body.put("details", errors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(RestClientResponseException.class)
+    public ResponseEntity<Map<String, Object>> handleRestClient(RestClientResponseException ex) {
+        int status = ex.getStatusCode().value();
+        if (status == 503) {
+            return buildResponse(HttpStatus.SERVICE_UNAVAILABLE,
+                    "The AI service is temporarily busy. Please try again in a moment.");
+        }
+        if (status == 429) {
+            return buildResponse(HttpStatus.TOO_MANY_REQUESTS,
+                    "Too many AI requests right now. Please try again in a minute.");
+        }
+        return buildResponse(HttpStatus.BAD_GATEWAY, "AI provider request failed. Please try again.");
     }
 
     @ExceptionHandler(Exception.class)

@@ -23,24 +23,30 @@ public class EntrepriseJobDashboardService {
         Entreprise e = entrepriseRepository.findById(entrepriseId)
                 .orElseThrow(() -> new NotFoundException("Entreprise introuvable avec id: " + entrepriseId));
 
-        long activeOffers = offreRepository.findByEntreprise_IdEntrepriseOrderByDatePublicationDesc(entrepriseId)
-                .stream()
-                .filter(o -> o.getStatutOfrre() != Status.REFUSEE)
+        var offres = offreRepository.findByEntreprise_IdEntrepriseOrderByDatePublicationDesc(entrepriseId);
+
+        // Total offers excludes archived (matches what the dashboard list shows).
+        long totalOffers = offres.stream()
+                .filter(o -> !Boolean.TRUE.equals(o.getIsArchived()))
                 .count();
 
-        long totalApplications = offreRepository.findByEntreprise_IdEntrepriseOrderByDatePublicationDesc(entrepriseId)
-                .stream()
+        long activeOffers = offres.stream()
+                .filter(o -> !Boolean.TRUE.equals(o.getIsArchived()))
+                .filter(o -> o.getStatutOfrre() == Status.ACTIVE)
+                .count();
+
+        long totalApplications = offres.stream()
                 .mapToLong(o -> candidatureRepository.findByOffreIdOffre(o.getIdOffre()).size())
                 .sum();
 
-        long pendingApplications = offreRepository.findByEntreprise_IdEntrepriseOrderByDatePublicationDesc(entrepriseId)
-                .stream()
+        long pendingApplications = offres.stream()
                 .flatMap(o -> candidatureRepository.findByOffreIdOffre(o.getIdOffre()).stream())
                 .filter(c -> c.getStatutCandidature() == Status.EN_ATTENTE)
                 .count();
 
         return EntrepriseJobDashboardDTO.builder()
                 .verification(verificationService.getStatus(entrepriseId))
+                .totalOffers(totalOffers)
                 .activeOffers(activeOffers)
                 .totalApplications(totalApplications)
                 .pendingApplications(pendingApplications)

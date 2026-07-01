@@ -13,4 +13,12 @@ public class CandidatureApplyMeDTO {
 
     @Size(max = 2000)
     private String lettreMotivation;
+
+    // Selected existing CV (Fichier) to attach. Optional.
+    private Long fichierId;
+
+    // Easy-apply standard questions
+    private Integer yearsExperience;
+    private Boolean willingToRelocate;
+    private String availabilityDate; // ISO date (yyyy-MM-dd)
 }
