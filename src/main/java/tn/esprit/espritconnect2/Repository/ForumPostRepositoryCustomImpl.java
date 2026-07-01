@@ -41,7 +41,8 @@ public class ForumPostRepositoryCustomImpl implements ForumPostRepositoryCustom 
         }
         if (discussionId != null) {
             jpql.append(" AND p.forumDiscussion.id = :discussionId");
-        } else if (reported == null || !reported) {
+        } else if (status == null && (reported == null || !reported)) {
+            // Public forum feed: standalone posts only. Explicit status (e.g. admin moderation) includes discussion posts.
             jpql.append(" AND p.forumDiscussion IS NULL");
         }
 

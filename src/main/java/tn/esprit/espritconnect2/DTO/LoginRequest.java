@@ -19,4 +19,7 @@ public class LoginRequest {
     private String password;
 
     private String deviceToken;
+
+    private Long captchaId;
+    private String captchaToken;
 }

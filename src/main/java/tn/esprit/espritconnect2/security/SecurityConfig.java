@@ -57,12 +57,14 @@ public class SecurityConfig {
                 .requestMatchers(
                         "/api/auth/login",
                         "/api/auth/register",
+                        "/api/auth/google-login",
                         "/api/auth/verify-2fa-login",
                         "/api/auth/register-enterprise",
                         "/api/auth/verify-email",
                         "/api/auth/resend-verification-email",
                         "/api/auth/forgot-password",
-                        "/api/auth/reset-password"
+                        "/api/auth/reset-password",
+                        "/api/captcha/**"
                 ).permitAll()
                 .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers("/api/offres/public/**").permitAll()
@@ -73,8 +75,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/registration/settings").permitAll()
                 // DEV: open job APIs while building entreprise job dashboard (tighten before prod)
                 .requestMatchers("/api/offres/**").permitAll()
+                .requestMatchers("/api/ai/**").permitAll()
                 .requestMatchers("/api/matchings/**").permitAll()
                 .requestMatchers("/api/candidatures/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/student-ai/status").permitAll()
+                .requestMatchers("/api/student-ai/**").authenticated()
                 .requestMatchers("/api/etudiants/me", "/api/alumni/me").authenticated()
                 .requestMatchers("/api/entreprises/*/job-dashboard").permitAll()
                 .requestMatchers("/api/entreprises/*/verification/**").permitAll()

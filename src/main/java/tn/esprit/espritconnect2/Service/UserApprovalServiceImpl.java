@@ -136,11 +136,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     public void declineUser(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
-        
-        emailService.sendDeclineNotification(user);
-        
-        deleteRelatedEntities(user);
-        userRepository.delete(user);
+
+        user.setEnabled(false);
+        user.setInscriptionRefusee(true);
+        user.setStatus(Status.REFUSEE);
+        User savedUser = userRepository.save(user);
+
+        emailService.sendDeclineNotification(savedUser);
     }
 
     @Override
@@ -179,10 +181,15 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     @Override
     public void bulkDecline(List<UUID> userIds) {
         List<User> users = userRepository.findByIdIn(userIds);
-        
-        users.forEach(emailService::sendDeclineNotification);
-        users.forEach(this::deleteRelatedEntities);
-        userRepository.deleteAll(users);
+
+        users.forEach(user -> {
+            user.setEnabled(false);
+            user.setInscriptionRefusee(true);
+            user.setStatus(Status.REFUSEE);
+        });
+        List<User> savedUsers = userRepository.saveAll(users);
+
+        savedUsers.forEach(emailService::sendDeclineNotification);
     }
 
     @Override

@@ -24,6 +24,7 @@ public class EtudiantServiceImpl {
     private final EtudiantRepository etudiantRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final StudentAccountResolver studentAccountResolver;
 
     // ─── Mapper DTO → Entité ──────────────────────────────────────────────────
     private Etudiant toEntity(EtudiantRequestDTO dto) {
@@ -85,8 +86,7 @@ public class EtudiantServiceImpl {
     }
 
     public EtudiantResponseDTO getEtudiantByEmail(String email) {
-        Etudiant etudiant = etudiantRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Etudiant introuvable pour cet email"));
+        Etudiant etudiant = studentAccountResolver.resolveOrProvision(email);
         return toDTO(etudiant);
     }
 

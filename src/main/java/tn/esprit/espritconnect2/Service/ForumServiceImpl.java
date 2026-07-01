@@ -639,6 +639,57 @@ public class ForumServiceImpl implements ForumService {
             }
         }
 
+        List<String> usersToDelete = Arrays.asList(
+                "Karim Trabelsi", 
+                "Utilisateur Suspect", 
+                "Skander Feki", 
+                "Prof. Leila Jouini", 
+                "Student User"
+        );
+
+        List<ForumDiscussion> discussionsToDelete = allDiscussions.stream()
+                .filter(d -> d.getCreatorName() != null && usersToDelete.stream().anyMatch(u -> u.equalsIgnoreCase(d.getCreatorName())))
+                .toList();
+        List<Long> discussionIdsToDelete = discussionsToDelete.stream().map(ForumDiscussion::getId).toList();
+
+        List<ForumPost> allPostsToBeDeleted = allPosts.stream()
+                .filter(p -> (p.getAuthorName() != null && usersToDelete.stream().anyMatch(u -> u.equalsIgnoreCase(p.getAuthorName()))) ||
+                             (p.getForumDiscussion() != null && discussionIdsToDelete.contains(p.getForumDiscussion().getId())))
+                .collect(java.util.stream.Collectors.toList());
+
+        List<Long> postIdsToDelete = allPostsToBeDeleted.stream().map(ForumPost::getId).toList();
+
+        List<ForumReply> allReplies = replyRepository.findAll();
+        List<ForumReply> allRepliesToBeDeleted = allReplies.stream()
+                .filter(r -> (r.getAuthorName() != null && usersToDelete.stream().anyMatch(u -> u.equalsIgnoreCase(r.getAuthorName()))) ||
+                             (r.getPost() != null && postIdsToDelete.contains(r.getPost().getId())))
+                .collect(java.util.stream.Collectors.toList());
+
+        List<Long> replyIds = allRepliesToBeDeleted.stream().map(ForumReply::getId).toList();
+        if (!replyIds.isEmpty()) {
+            List<tn.esprit.espritconnect2.Entitie.ForumReplyLike> replyLikes = replyLikeRepository.findAll().stream()
+                    .filter(like -> replyIds.contains(like.getReply().getId()))
+                    .toList();
+            replyLikeRepository.deleteAll(replyLikes);
+        }
+
+        List<Long> postIds = allPostsToBeDeleted.stream().map(ForumPost::getId).toList();
+        if (!postIds.isEmpty()) {
+            List<tn.esprit.espritconnect2.Entitie.ForumPostLike> postLikes = postLikeRepository.findAll().stream()
+                    .filter(like -> postIds.contains(like.getPost().getId()))
+                    .toList();
+            postLikeRepository.deleteAll(postLikes);
+
+            List<tn.esprit.espritconnect2.Entitie.ForumPostFavorite> postFavs = postFavoriteRepository.findAll().stream()
+                    .filter(fav -> postIds.contains(fav.getPost().getId()))
+                    .toList();
+            postFavoriteRepository.deleteAll(postFavs);
+        }
+
+        replyRepository.deleteAll(allRepliesToBeDeleted);
+        postRepository.deleteAll(allPostsToBeDeleted);
+        discussionRepository.deleteAll(discussionsToDelete);
+
         // Seeding des catégories d'abord
         ForumCategory softwareCategory;
         ForumCategory careerCategory;
@@ -839,110 +890,7 @@ public class ForumServiceImpl implements ForumService {
                     .build());
         }
 
-        // 2. Création de publications et commentaires réalistes
-        // Post 1 - PFE & Stages (Épinglé)
-        ForumPost post1 = postRepository.save(ForumPost.builder()
-                .title("Conseils clés pour décrocher et réussir son stage PFE en Data / IA")
-                .content("Bonjour à tous les Espritiens ! Anciennement étudiant à Esprit, j'ai décroché mon PFE dans une grande multinationale et j'y travaille aujourd'hui en tant que Data Scientist. Voici mes 3 conseils essentiels :\n\n1. Soyez irréprochables sur les fondamentaux (Python, SQL et notions de Machine Learning).\n2. Développez au moins un projet Github personnel complet (de l'ingestion à la modélisation) et mettez-le en valeur sur votre CV.\n3. Entraînez-vous à pitcher votre projet en 2 minutes.\n\nBon courage à tous !")
-                .category(softwareCategory)
-                .authorName("Karim Trabelsi")
-                .authorEmail("karim.trabelsi.alumni@esprit.tn")
-                .authorRole(Role.ALUMNI)
-                .pinned(true)
-                .reported(false)
-                .viewsCount(240)
-                .build());
 
-        replyRepository.save(ForumReply.builder()
-                .post(post1)
-                .content("Merci beaucoup pour ces conseils précieux Karim ! Conseilles-tu de passer des certifications Cloud (AWS/Azure) pour se démarquer avant d'entamer le stage ?")
-                .authorName("Yasmine Ayari")
-                .authorEmail("yasmine.ayari@esprit.tn")
-                .authorRole(Role.ETUDIANT)
-                .build());
-
-        replyRepository.save(ForumReply.builder()
-                .post(post1)
-                .content("Bonjour Yasmine et Karim ! En tant qu'enseignant, je confirme à 100% les propos de Karim. Concernant ta question Yasmine : les certifications Cloud sont en effet un excellent signal, mais la pratique et la maîtrise d'un projet Git structuré restent prioritaires aux yeux des recruteurs techniques. Concentrez-vous sur le concret !")
-                .authorName("Prof. Mohamed Ben Ali")
-                .authorEmail("mohamed.benali@esprit.tn")
-                .authorRole(Role.ENSEIGNANT)
-                .build());
-
-        // Post 2 - Vie Estudiantine & Clubs
-        ForumPost post2 = postRepository.save(ForumPost.builder()
-                .title("Quels sont les meilleurs clubs pour débuter en Cybersécurité à Esprit ?")
-                .content("Salut tout le monde ! Je suis actuellement en 2ème année et je souhaite m'orienter vers la spécialité sécurité. J'aimerais savoir quels clubs ou communautés au sein d'Esprit organisent le plus d'ateliers pratiques et de CTF pour les grands débutants. Merci d'avance !")
-                .category(softwareCategory)
-                .authorName("Skander Feki")
-                .authorEmail("skander.feki@esprit.tn")
-                .authorRole(Role.ETUDIANT)
-                .pinned(false)
-                .reported(false)
-                .viewsCount(85)
-                .build());
-
-        replyRepository.save(ForumReply.builder()
-                .post(post2)
-                .content("Salut Skander ! Tu devrais absolument faire un tour chez EspritSec ou Esprit Hack. Ils animent des formations hebdomadaires de vulgarisation et préparent les membres aux compétitions nationales de CTF. L'ambiance y est super collaborative !")
-                .authorName("Salma Rebai")
-                .authorEmail("salma.rebai@esprit.tn")
-                .authorRole(Role.ETUDIANT)
-                .build());
-
-        // Post 3 - Génie Logiciel
-        ForumPost post3 = postRepository.save(ForumPost.builder()
-                .title("Supports de cours additionnels - Architecture Microservices & Angular")
-                .content("Chers étudiants de 4ème année, j'ai mis à votre disposition sur notre espace partagé des exemples complets d'implémentation de passerelles API (Spring Cloud Gateway) ainsi que l'interconnexion avec un frontend Angular. Ces ressources complètent notre séance de travaux pratiques de cette semaine.")
-                .category(softwareCategory)
-                .authorName("Prof. Leila Jouini")
-                .authorEmail("leila.jouini@esprit.tn")
-                .authorRole(Role.ENSEIGNANT)
-                .pinned(false)
-                .reported(false)
-                .viewsCount(150)
-                .build());
-
-        replyRepository.save(ForumReply.builder()
-                .post(post3)
-                .content("Un grand merci Madame ! Les templates nous font gagner un temps précieux pour notre projet intégré.")
-                .authorName("Ahmed Mansour")
-                .authorEmail("ahmed.mansour@esprit.tn")
-                .authorRole(Role.ETUDIANT)
-                .build());
-
-        // Post 4 - Post Signalé pour tester la modération
-        ForumPost post4 = postRepository.save(ForumPost.builder()
-                .title("Vente de projets intégrés tout faits - 100% garantis")
-                .content("Hey les gars ! Si vous avez la flemme de coder votre projet de génie logiciel ou de Web, je propose des projets Angular/Spring complets prêts à l'envoi avec rapports rédigés. Contactez-moi par message privé sur Telegram @HackEsprit. Prix très attractif !")
-                .category(softwareCategory)
-                .authorName("Utilisateur Suspect")
-                .authorEmail("suspect@esprit.tn")
-                .authorRole(Role.ETUDIANT)
-                .pinned(false)
-                .reported(true)
-                .reportReason("Vente illégale de projets universitaires - Plagiat académique")
-                .viewsCount(12)
-                .build());
-
-        replyRepository.save(ForumReply.builder()
-                .post(post4)
-                .content("C'est totalement interdit et passible d'exclusion définitive du conseil de discipline ! Merci de supprimer ce message.")
-                .authorName("Firas Ghorbel")
-                .authorEmail("firas.ghorbel@esprit.tn")
-                .authorRole(Role.ETUDIANT)
-                .build());
-
-        // Commentaire signalé sur le post 1 pour démo
-        ForumReply replySignale = replyRepository.save(ForumReply.builder()
-                .post(post1)
-                .content("Message publicitaire spam : Visitez mon site web frauduleux pour acheter des Bitcoins faciles !")
-                .authorName("Spammer Anonyme")
-                .authorEmail("spam@spambot.com")
-                .authorRole(Role.ALUMNI)
-                .reported(true)
-                .reportReason("Publicité / Spam commercial indésirable")
-                .build());
 
     }
 
