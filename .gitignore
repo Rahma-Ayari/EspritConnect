@@ -41,3 +41,8 @@ src/main/resources/application-local.properties
 application-local.properties
 **/application-local.properties
 !**/application-local.properties.example
+
+src/main/resources/application-brevo.properties
+application-brevo.properties
+**/application-brevo.properties
+!**/application-brevo.properties.example

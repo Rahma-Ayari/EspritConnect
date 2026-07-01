@@ -11,6 +11,8 @@ public class ImportJobResponseDTO {
     private String responsibilities;
     private List<String> skills;
     private String requirements;
+    private String benefits;
+    private String experienceLevel;
     private String location;
     private String contractType;
     private Map<String, Object> extractedData;

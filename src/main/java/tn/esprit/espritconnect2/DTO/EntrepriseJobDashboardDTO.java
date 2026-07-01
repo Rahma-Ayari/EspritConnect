@@ -9,6 +9,7 @@ import lombok.*;
 @Builder
 public class EntrepriseJobDashboardDTO {
     private EntrepriseVerificationDTO verification;
+    private long totalOffers;
     private long activeOffers;
     private long totalApplications;
     private long pendingApplications;

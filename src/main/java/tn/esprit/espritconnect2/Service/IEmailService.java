@@ -19,4 +19,12 @@ public interface IEmailService {
     void sendSuspiciousLoginWarningEmail(User user, String ipAddress, String userAgentInfo);
 
     void sendAccountLockoutEmail(User user, String ipAddress, String userAgentInfo);
+
+    void sendApplicationConfirmation(String studentEmail, String studentName, String jobTitle, String companyName);
+
+    void sendApplicationProceeding(String studentEmail, String studentName, String jobTitle, String companyName);
+
+    void sendApplicationAccepted(String studentEmail, String studentName, String jobTitle, String companyName);
+
+    void sendApplicationRejected(String studentEmail, String studentName, String jobTitle, String companyName);
 }

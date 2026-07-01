@@ -24,6 +24,7 @@ public class JobOfferDTO {
     private String responsibilities;
     private String requirements;
     private String benefits;
+    private String applicationUrl;
     private String status;
     private Integer applicationCount;
     private Boolean isPinned;

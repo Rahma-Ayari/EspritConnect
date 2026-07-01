@@ -76,6 +76,7 @@ public class JobImportService {
         response.setDescription(sections.description);
         response.setResponsibilities(sections.responsibilities);
         response.setRequirements(sections.requirements);
+        response.setBenefits(sections.benefits);
         response.setSkills(extractSkills(normalized));
         response.setLocation(extractLocation(normalized));
         response.setContractType(guessContractType(normalized));
@@ -147,7 +148,8 @@ public class JobImportService {
 
         if (description != null && !looksLikeLinkedInTitleOnly(description)) {
             String cleanDescription = normalizeImportText(description);
-            if (cleanDescription.length() >= MIN_JOB_DESCRIPTION_LENGTH) {
+            if (cleanDescription.length() >= MIN_JOB_DESCRIPTION_LENGTH
+                    && !isLinkedInMarketingSnippet(cleanDescription)) {
                 return buildLinkedInResponse(title, cleanDescription, "meta");
             }
         }
@@ -187,11 +189,54 @@ public class JobImportService {
         response.setDescription(sections.description);
         response.setResponsibilities(sections.responsibilities);
         response.setRequirements(sections.requirements);
+        response.setBenefits(sections.benefits);
         response.setSkills(extractSkills(cleanDescription));
-        response.setLocation(extractLocation(cleanDescription));
+        response.setLocation(firstNonBlank(
+                extractLocationFromTitle(title),
+                extractLocation(cleanDescription)
+        ));
         response.setContractType(guessContractType(cleanDescription));
+        response.setExperienceLevel(guessExperienceLevel(cleanDescription));
         response.setExtractedData(new HashMap<>(Map.of("parser", parser)));
         return response;
+    }
+
+    private boolean isLinkedInMarketingSnippet(String text) {
+        if (text == null) {
+            return true;
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        return lower.contains("see what you're missing")
+                || lower.contains("see what you’re missing")
+                || lower.contains("similar jobs on linkedin")
+                || lower.contains("see this and similar jobs on linkedin");
+    }
+
+    private String extractLocationFromTitle(String title) {
+        if (title == null || title.isBlank()) {
+            return null;
+        }
+        Matcher matcher = Pattern.compile(
+                "(?i)^.+?\\s+in\\s+([A-Za-zÀ-ÿ\\s.'-]+?,\\s*[A-Za-z]{2,}(?:\\s+[A-Za-z]+)?)"
+        ).matcher(title.trim());
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        }
+        return null;
+    }
+
+    private String guessExperienceLevel(String text) {
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("10+ years") || lower.contains("expert") || lower.contains("principal")) {
+            return "EXPERT";
+        }
+        if (lower.contains("5+ years") || lower.contains("senior") || lower.contains("lead ")) {
+            return "SENIOR";
+        }
+        if (lower.contains("2 years") || lower.contains("intermediate") || lower.contains("mid-level")) {
+            return "INTERMEDIATE";
+        }
+        return "JUNIOR";
     }
 
     private String extractMetaContent(String html, String propertyOrName) {
@@ -303,9 +348,14 @@ public class JobImportService {
             response.setDescription(sections.description);
             response.setResponsibilities(sections.responsibilities);
             response.setRequirements(sections.requirements);
+            response.setBenefits(sections.benefits);
             response.setSkills(extractSkills(cleanDescription));
-            response.setLocation(extractLocation(cleanDescription));
+            response.setLocation(firstNonBlank(
+                    extractLocationFromTitle(response.getTitle()),
+                    extractLocation(cleanDescription)
+            ));
             response.setContractType(guessContractType(cleanDescription));
+            response.setExperienceLevel(guessExperienceLevel(cleanDescription));
             response.setExtractedData(new HashMap<>(Map.of("parser", "json-ld")));
             return Optional.of(response);
         }
@@ -478,6 +528,7 @@ public class JobImportService {
         private String description = "";
         private String responsibilities = "";
         private String requirements = "";
+        private String benefits = "";
     }
 
     private JobSections parseJobSections(String normalized) {
@@ -490,15 +541,20 @@ public class JobImportService {
         int missionsIdx = indexOfSectionMarker(lower,
                 "vos missions", "missions principales", "missions :", "missions:",
                 "responsabilités", "responsabilites", "responsabilités :",
-                "what you'll", "what you’ll", "your mission", "key responsibilities");
+                "what you'll", "what you’ll", "your mission", "key responsibilities",
+                "is looking for", "looking for a", "this role requires", "the successful candidate");
         int profileIdx = indexOfSectionMarker(lower,
                 "profil recherché", "profil recherche", "profil requis", "profil :",
                 "qualifications", "requirements", "exigences",
+                "required education", "required education, experience",
                 "compétences requises", "competences requises",
                 "you're a great fit", "you are a great fit",
                 "minimum ", "ans d'expérience", "ans d experience", "bac +");
+        int preferredIdx = indexOfSectionMarker(lower,
+                "preferred education", "preferred education, experience");
         int benefitsIdx = indexOfSectionMarker(lower,
-                "benefits", "avantages", "ce que nous offrons", "what we offer");
+                "employee benefits", "benefits:", "benefits", "avantages", "ce que nous offrons", "what we offer");
+        int payIdx = indexOfSectionMarker(lower, "pay information", "salary range");
 
         if (missionsIdx >= 0) {
             sections.description = normalized.substring(0, missionsIdx).trim();
@@ -511,11 +567,24 @@ public class JobImportService {
         }
 
         if (profileIdx >= 0) {
-            int reqEnd = benefitsIdx > profileIdx ? benefitsIdx : normalized.length();
+            int reqEnd = preferredIdx > profileIdx ? preferredIdx
+                    : (benefitsIdx > profileIdx ? benefitsIdx : (payIdx > profileIdx ? payIdx : normalized.length()));
             sections.requirements = normalized.substring(profileIdx, reqEnd).trim();
+            if (preferredIdx > profileIdx) {
+                int prefEnd = benefitsIdx > preferredIdx ? benefitsIdx : (payIdx > preferredIdx ? payIdx : normalized.length());
+                sections.requirements = (sections.requirements + "\n\n"
+                        + normalized.substring(preferredIdx, prefEnd).trim()).trim();
+            }
             if (missionsIdx < 0 && sections.description.equals(normalized)) {
                 sections.description = normalized.substring(0, profileIdx).trim();
             }
+        }
+
+        if (benefitsIdx >= 0) {
+            int benefitsEnd = payIdx > benefitsIdx ? payIdx : normalized.length();
+            sections.benefits = normalized.substring(benefitsIdx, benefitsEnd).trim();
+        } else if (payIdx >= 0 && payIdx + 80 < normalized.length()) {
+            sections.benefits = normalized.substring(payIdx).trim();
         }
 
         if (missionsIdx < 0 && profileIdx < 0) {
@@ -524,7 +593,9 @@ public class JobImportService {
 
         sections.responsibilities = stripLeadingSectionHeader(sections.responsibilities);
         sections.requirements = stripLeadingSectionHeader(sections.requirements);
+        sections.benefits = stripLeadingSectionHeader(sections.benefits);
         sections.description = stripLeadingSectionHeader(sections.description);
+        sections.description = stripLinkedInNoise(sections.description);
 
         if (sections.description.isBlank()) {
             sections.description = firstParagraph(normalized);
@@ -669,16 +740,28 @@ public class JobImportService {
         return compareLen > 40 && na.regionMatches(0, nb, 0, compareLen);
     }
 
-    private String extractLocation(String text) {
-        Matcher matcher = Pattern.compile("(?i)(?:location|lieu|based in|à|in)\\s*[:\\-]?\\s*([A-Za-zÀ-ÿ\\s,.-]{3,60})")
-                .matcher(text);
-        if (matcher.find()) {
-            return matcher.group(1).trim();
+    private String stripLinkedInNoise(String text) {
+        if (text == null) {
+            return "";
         }
-        Matcher linkedInLocation = Pattern.compile("(?i)in\\s+([A-Za-zÀ-ÿ\\s,.-]{3,40}),\\s*([A-Za-zÀ-ÿ\\s,.-]{2,40})")
-                .matcher(text);
-        if (linkedInLocation.find()) {
-            return linkedInLocation.group(1).trim() + ", " + linkedInLocation.group(2).trim();
+        return text
+                .replaceAll("(?i)see this and similar jobs on linkedin\\.?", "")
+                .replaceAll("(?i)see what you'?re missing\\.?.*", "")
+                .trim();
+    }
+
+    private String extractLocation(String text) {
+        Matcher explicit = Pattern.compile(
+                "(?i)(?:location|lieu|based in|work location)\\s*[:\\-]?\\s*([A-Za-zÀ-ÿ0-9\\s,.-]{3,60})"
+        ).matcher(text);
+        if (explicit.find()) {
+            return explicit.group(1).trim();
+        }
+        Matcher cityState = Pattern.compile(
+                "(?i)\\b(?:in|at|based in)\\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s.'-]{2,40},\\s*[A-Z]{2})\\b"
+        ).matcher(text);
+        if (cityState.find()) {
+            return cityState.group(1).trim();
         }
         if (text.toLowerCase(Locale.ROOT).contains("tunis")) {
             return "Tunis, Tunisia";
@@ -688,6 +771,9 @@ public class JobImportService {
 
     private String guessContractType(String text) {
         String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("full-time") || lower.contains("full time") || lower.contains("cdi") || lower.contains("permanent")) {
+            return "EMPLOI";
+        }
         if (lower.contains("intern") || lower.contains("stage")) {
             return "STAGE";
         }
