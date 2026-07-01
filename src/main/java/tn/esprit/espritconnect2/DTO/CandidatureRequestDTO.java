@@ -20,4 +20,12 @@ public class CandidatureRequestDTO {
 
     @Size(max = 2000)
     private String lettreMotivation;
+
+    private Long fichierId;
+    private Integer yearsExperience;
+    private Boolean willingToRelocate;
+    private String availabilityDate; // ISO date (yyyy-MM-dd)
+
+    /** Logged-in account email — preferred recipient for confirmation mail. */
+    private String notifyEmail;
 }

@@ -41,13 +41,14 @@ public class JobOfferController {
             @RequestParam(required = false) List<String> contractType,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String location,
+            @RequestParam(required = false) Long entrepriseId,
             @RequestParam(required = false, defaultValue = "recent") String sortBy,
             @RequestParam(required = false, defaultValue = "desc") String sortOrder,
             @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int limit) {
         
         Map<String, Object> result = jobOfferService.getJobs(
-            search, status, contractType, department, location, 
+            search, status, contractType, department, location, entrepriseId,
             sortBy, sortOrder, page, limit
         );
         return ResponseEntity.ok(result);

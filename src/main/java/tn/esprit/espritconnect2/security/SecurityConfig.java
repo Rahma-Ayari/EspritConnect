@@ -78,6 +78,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/ai/**").permitAll()
                 .requestMatchers("/api/matchings/**").permitAll()
                 .requestMatchers("/api/candidatures/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/student-ai/status").permitAll()
+                .requestMatchers("/api/student-ai/**").authenticated()
                 .requestMatchers("/api/etudiants/me", "/api/alumni/me").authenticated()
                 .requestMatchers("/api/entreprises/*/job-dashboard").permitAll()
                 .requestMatchers("/api/entreprises/*/verification/**").permitAll()

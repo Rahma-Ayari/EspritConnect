@@ -18,6 +18,16 @@ public class JobsDashboardAiController {
 
     private final JobsRecruitmentAiService aiService;
 
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> status() {
+        return ResponseEntity.ok(Map.of(
+                "configured", aiService.isConfigured(),
+                "message", aiService.isConfigured()
+                        ? "AI recruitment assistant is available."
+                        : "AI not configured. Profile-based matching still works."
+        ));
+    }
+
     @PostMapping("/generate-job")
     public ResponseEntity<?> generateJob(@RequestBody AIJobGenerateRequestDTO request) {
         return execute(() -> aiService.generateJob(request));

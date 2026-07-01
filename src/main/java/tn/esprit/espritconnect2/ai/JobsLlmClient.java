@@ -18,6 +18,15 @@ import java.util.Locale;
 @Slf4j
 public class JobsLlmClient {
 
+    private static final int MAX_TOKENS_CAP = 8192;
+    private static final String CONCISE_SUFFIX = """
+
+            IMPORTANT: Return complete valid JSON only.
+            - Max 4 items per array.
+            - Each string value max 80 characters.
+            - Do not truncate mid-string.
+            """;
+
     private final JobsAiProperties properties;
     private final RestClient jobsAiRestClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -25,39 +34,68 @@ public class JobsLlmClient {
     public record LlmResult(String text, String providerLabel) {}
 
     public LlmResult complete(String systemPrompt, String userPrompt) {
+        return complete(systemPrompt, userPrompt, properties.getMaxOutputTokens());
+    }
+
+    public LlmResult complete(String systemPrompt, String userPrompt, int maxOutputTokens) {
         if (!properties.isConfigured()) {
             throw new IllegalStateException("No AI provider configured. Set GEMINI_API_KEY or OPENAI_API_KEY.");
         }
 
         String primary = properties.getProvider() == null ? "gemini" : properties.getProvider().toLowerCase(Locale.ROOT);
         try {
-            return callProvider(primary, systemPrompt, userPrompt);
+            return callProvider(primary, systemPrompt, userPrompt, maxOutputTokens);
         } catch (Exception e) {
             log.warn("Jobs AI primary provider {} failed: {}", primary, e.getMessage());
             if (!properties.isFallbackEnabled()) {
                 throw e instanceof RuntimeException re ? re : new RuntimeException(e);
             }
             String fallback = "gemini".equals(primary) ? "openai" : "gemini";
-            return callProvider(fallback, systemPrompt, userPrompt);
+            if (isProviderReady(fallback)) {
+                return callProvider(fallback, systemPrompt, userPrompt, maxOutputTokens);
+            }
+            throw e instanceof RuntimeException re ? re : new RuntimeException(e);
         }
     }
 
-    private LlmResult callProvider(String providerType, String systemPrompt, String userPrompt) {
+    private boolean isProviderReady(String providerType) {
+        if ("openai".equalsIgnoreCase(providerType)) {
+            return properties.isOpenAiReady();
+        }
+        return properties.isGeminiReady();
+    }
+
+    private LlmResult callProvider(String providerType, String systemPrompt, String userPrompt, int maxOutputTokens) {
         if ("openai".equalsIgnoreCase(providerType)) {
             if (!properties.isOpenAiReady()) {
                 throw new IllegalStateException("OpenAI API key is not configured");
             }
-            String text = callOpenAi(systemPrompt, userPrompt);
+            String text = callOpenAi(systemPrompt, userPrompt, maxOutputTokens);
             return new LlmResult(text, "OpenAI");
         }
         if (!properties.isGeminiReady()) {
             throw new IllegalStateException("Gemini API key is not configured");
         }
-        String text = callGemini(systemPrompt, userPrompt);
+        String text = callGemini(systemPrompt, userPrompt, maxOutputTokens);
         return new LlmResult(text, "Gemini AI");
     }
 
-    private String callGemini(String systemPrompt, String userPrompt) {
+    private String callGemini(String systemPrompt, String userPrompt, int maxOutputTokens) {
+        GeminiCallResult first = callGeminiOnce(systemPrompt, userPrompt, maxOutputTokens);
+        if (first.truncated() && maxOutputTokens < MAX_TOKENS_CAP) {
+            log.warn("Gemini response truncated at {} tokens, retrying with {}", maxOutputTokens, MAX_TOKENS_CAP);
+            GeminiCallResult retry = callGeminiOnce(systemPrompt, userPrompt + CONCISE_SUFFIX, MAX_TOKENS_CAP);
+            if (retry.text() != null && !retry.text().isBlank()) {
+                return retry.text();
+            }
+        }
+        if (first.truncated()) {
+            log.warn("Gemini response still truncated at max tokens — JSON repair may be needed");
+        }
+        return first.text();
+    }
+
+    private GeminiCallResult callGeminiOnce(String systemPrompt, String userPrompt, int maxOutputTokens) {
         String model = properties.getGeminiModel();
         String url = "https://generativelanguage.googleapis.com/v1beta/models/"
                 + model + ":generateContent?key=" + properties.getGeminiApiKey();
@@ -75,14 +113,22 @@ public class JobsLlmClient {
                 .put("text", userPrompt);
         body.putObject("generationConfig")
                 .put("temperature", properties.getTemperature())
-                .put("maxOutputTokens", properties.getMaxOutputTokens())
+                .put("maxOutputTokens", maxOutputTokens)
                 .put("responseMimeType", "application/json");
 
         JsonNode response = postWithRetry(url, body, null);
-        return extractGeminiText(response);
+        JsonNode candidates = response.path("candidates");
+        if (!candidates.isArray() || candidates.isEmpty()) {
+            return new GeminiCallResult(null, false);
+        }
+        JsonNode candidate = candidates.get(0);
+        String finishReason = candidate.path("finishReason").asText("");
+        boolean truncated = "MAX_TOKENS".equals(finishReason);
+        String text = extractGeminiTextFromCandidate(candidate);
+        return new GeminiCallResult(text, truncated);
     }
 
-    private String callOpenAi(String systemPrompt, String userPrompt) {
+    private String callOpenAi(String systemPrompt, String userPrompt, int maxOutputTokens) {
         String baseUrl = properties.getOpenaiBaseUrl();
         if (baseUrl == null || baseUrl.isBlank()) {
             baseUrl = "https://api.openai.com/v1";
@@ -95,14 +141,21 @@ public class JobsLlmClient {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", properties.getOpenaiModel());
         body.put("temperature", properties.getTemperature());
-        body.put("max_tokens", properties.getMaxOutputTokens());
+        body.put("max_tokens", maxOutputTokens);
         ArrayNode messages = body.putArray("messages");
         messages.addObject().put("role", "system").put("content", systemPrompt);
         messages.addObject().put("role", "user").put("content", userPrompt);
         body.putObject("response_format").put("type", "json_object");
 
         JsonNode response = postWithRetry(url, body, properties.getOpenaiApiKey());
-        return response.path("choices").path(0).path("message").path("content").asText(null);
+        JsonNode choice = response.path("choices").path(0);
+        String finishReason = choice.path("finish_reason").asText("");
+        String text = choice.path("message").path("content").asText(null);
+        if ("length".equals(finishReason) && maxOutputTokens < MAX_TOKENS_CAP) {
+            log.warn("OpenAI response truncated, retrying with concise prompt");
+            return callOpenAi(systemPrompt, userPrompt + CONCISE_SUFFIX, MAX_TOKENS_CAP);
+        }
+        return text;
     }
 
     private JsonNode postWithRetry(String url, ObjectNode body, String bearerToken) {
@@ -120,9 +173,19 @@ public class JobsLlmClient {
                     return response;
                 }
             } catch (RestClientResponseException e) {
-                if (e.getStatusCode().value() == 429 && attempt < maxAttempts) {
+                int status = e.getStatusCode().value();
+                if ((status == 429 || status == 503) && attempt < maxAttempts) {
+                    log.warn("AI provider returned {}, retrying ({}/{})", status, attempt, maxAttempts);
                     sleep(1500L * attempt);
                     continue;
+                }
+                if (status == 503) {
+                    throw new IllegalStateException(
+                            "The AI service is temporarily busy. Please try again in a moment.");
+                }
+                if (status == 429) {
+                    throw new IllegalStateException(
+                            "Too many AI requests right now. Please try again in a minute.");
                 }
                 throw e;
             }
@@ -138,15 +201,13 @@ public class JobsLlmClient {
         }
     }
 
-    private String extractGeminiText(JsonNode response) {
-        JsonNode candidates = response.path("candidates");
-        if (!candidates.isArray() || candidates.isEmpty()) {
-            return null;
-        }
-        JsonNode parts = candidates.get(0).path("content").path("parts");
+    private String extractGeminiTextFromCandidate(JsonNode candidate) {
+        JsonNode parts = candidate.path("content").path("parts");
         if (!parts.isArray() || parts.isEmpty()) {
             return null;
         }
         return parts.get(0).path("text").asText(null);
     }
+
+    private record GeminiCallResult(String text, boolean truncated) {}
 }
