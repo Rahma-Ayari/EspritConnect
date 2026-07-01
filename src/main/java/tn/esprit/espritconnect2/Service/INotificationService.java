@@ -9,5 +9,9 @@ public interface INotificationService {
     List<NotificationResponseDTO> getAllNotifications();
     NotificationResponseDTO getNotificationById(Long id);
     NotificationResponseDTO updateNotification(Long id, NotificationRequestDTO dto);
+    List<NotificationResponseDTO> getNotificationsByDestinataire(String destinataire);
+    long countUnreadByDestinataire(String destinataire);
+    NotificationResponseDTO markAsRead(Long id);
+    void markAllAsReadByDestinataire(String destinataire);
     void deleteNotification(Long id);
 }

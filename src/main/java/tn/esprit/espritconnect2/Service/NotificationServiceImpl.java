@@ -60,6 +60,35 @@ public class NotificationServiceImpl implements INotificationService {
     }
 
     @Override
+    public List<NotificationResponseDTO> getNotificationsByDestinataire(String destinataire) {
+        return notificationRepository.findTop50ByDestinataireOrderByDateEnvoiDesc(destinataire).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public long countUnreadByDestinataire(String destinataire) {
+        return notificationRepository.countByDestinataireAndLueFalse(destinataire);
+    }
+
+    @Override
+    @Transactional
+    public NotificationResponseDTO markAsRead(Long id) {
+        Notification n = notificationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Notification non trouvée avec l'id : " + id));
+        n.setLue(true);
+        return toDTO(notificationRepository.save(n));
+    }
+
+    @Override
+    @Transactional
+    public void markAllAsReadByDestinataire(String destinataire) {
+        List<Notification> notifications = notificationRepository.findByDestinataireOrderByDateEnvoiDesc(destinataire);
+        notifications.forEach(n -> n.setLue(true));
+        notificationRepository.saveAll(notifications);
+    }
+
+    @Override
     @Transactional
     public NotificationResponseDTO updateNotification(Long id, NotificationRequestDTO dto) {
         Notification n = notificationRepository.findById(id)

@@ -72,6 +72,7 @@ public class AuthServiceImpl implements IAuthService {
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final ICaptchaService captchaService;
+    private final AdminNotificationEventService adminNotificationEventService;
     
     @Value("${app.frontend.url:http://localhost:4200}")
     private String frontendUrl;
@@ -415,6 +416,7 @@ public class AuthServiceImpl implements IAuthService {
         if (!autoApproved) {
             log.info("Notification admin envoyée pour l'utilisateur pending: {}", user.getEmail());
             emailService.sendNewRegistrationNotification(user);
+            adminNotificationEventService.notifyNewUserRegistration(user);
         }
 
         String verificationUrl = null;
@@ -492,6 +494,7 @@ public class AuthServiceImpl implements IAuthService {
         if (!autoApproved) {
             log.info("Notification admin envoyée pour l'entreprise pending: {}", user.getEmail());
             emailService.sendNewRegistrationNotification(user);
+            adminNotificationEventService.notifyNewUserRegistration(user);
         }
 
         if (emailVerificationRequired || !autoApproved) {

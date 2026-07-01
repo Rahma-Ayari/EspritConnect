@@ -131,7 +131,7 @@ public class UsersSchemaRepairService {
     private void purgeInvalidUserReferences() {
         for (Map<String, Object> row : findAllUserIdColumns()) {
             String table = String.valueOf(row.get("tableName"));
-            if ("users".equals(table)) {
+            if ("users".equals(table) || shouldSkipUserIdUuidRepair(table)) {
                 continue;
             }
             if (!tableExists(table)) {
@@ -176,7 +176,7 @@ public class UsersSchemaRepairService {
 
         for (Map<String, Object> row : findAllUserIdColumns()) {
             String table = String.valueOf(row.get("tableName"));
-            if ("users".equals(table) || !tableExists(table)) {
+            if ("users".equals(table) || !tableExists(table) || shouldSkipUserIdUuidRepair(table)) {
                 continue;
             }
             if (isBinaryUuidStorage(table, "user_id")) {
@@ -389,6 +389,41 @@ public class UsersSchemaRepairService {
                         + "WHERE TABLE_SCHEMA = DATABASE() "
                         + "AND COLUMN_NAME = 'user_id'"
         );
+    }
+
+    /**
+     * Some tables (e.g. profil.user_id) store business identifiers like emails,
+     * not UUID references to users.id. Those columns must never be normalized
+     * or purged by UUID repair logic.
+     */
+    private boolean shouldSkipUserIdUuidRepair(String table) {
+        if ("profil".equalsIgnoreCase(table)) {
+            return true;
+        }
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT DATA_TYPE AS dataType, CHARACTER_MAXIMUM_LENGTH AS charLength "
+                        + "FROM information_schema.COLUMNS "
+                        + "WHERE TABLE_SCHEMA = DATABASE() "
+                        + "AND TABLE_NAME = ? AND COLUMN_NAME = 'user_id'",
+                table
+        );
+        if (rows.isEmpty()) {
+            return false;
+        }
+
+        Map<String, Object> meta = rows.get(0);
+        String dataType = String.valueOf(meta.get("dataType")).toLowerCase();
+        Object charLength = meta.get("charLength");
+
+        // UUID columns should be binary(16) or char/varchar up to 36.
+        // Longer text columns are likely emails or custom IDs.
+        if (("varchar".equals(dataType) || "char".equals(dataType))
+                && charLength instanceof Number length
+                && length.longValue() > 36) {
+            return true;
+        }
+        return false;
     }
 
     private boolean isVarchar36(String table, String column) {

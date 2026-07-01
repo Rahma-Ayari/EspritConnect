@@ -31,6 +31,7 @@ public class ProfilServiceImpl implements IProfilService {
     private final UserRepository userRepository;
     private final EtudiantRepository etudiantRepository;
     private final AlumniRepository alumniRepository;
+    private final AdminNotificationEventService adminNotificationEventService;
 
     // ─── Mapper DTO → Entité ──────────────────────────────────────────────────
     /**
@@ -264,6 +265,7 @@ public class ProfilServiceImpl implements IProfilService {
 
         Profil profil = toEntity(dto);
         Profil saved = profilRepository.save(profil);
+        userRepository.findByEmail(saved.getUserId()).ifPresent(adminNotificationEventService::notifyProfileUpdated);
         return toDTO(saved);
     }
 
@@ -404,7 +406,9 @@ public class ProfilServiceImpl implements IProfilService {
         profil.setGenre(dto.getGenre());
         profil.setNomProprietaire(dto.getNomProprietaire());
 
-        return toDTO(profilRepository.save(profil));
+        Profil updated = profilRepository.save(profil);
+        userRepository.findByEmail(updated.getUserId()).ifPresent(adminNotificationEventService::notifyProfileUpdated);
+        return toDTO(updated);
     }
 
     // ─── DELETE ───────────────────────────────────────────────────────────────

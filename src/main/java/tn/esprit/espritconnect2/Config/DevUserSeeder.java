@@ -52,14 +52,7 @@ public class DevUserSeeder implements ApplicationRunner {
         Optional<User> existingUserOpt = userRepository.findByEmail(email);
         
         if (existingUserOpt.isPresent()) {
-            User user = existingUserOpt.get();
-            user.setPassword(encodedPassword);
-            user.setRole(role);
-            user.setEnabled(true);
-            user.setEmailVerified(true);
-            user.setStatus(Status.ACCEPTEE);
-            userRepository.save(user);
-            System.out.println("Updated password and role for existing user: " + email);
+            System.out.println("User already exists, seeding skipped to preserve existing data: " + email);
         } else {
             User user = User.builder()
                     .nom(nom)
@@ -77,11 +70,7 @@ public class DevUserSeeder implements ApplicationRunner {
         if (role == Role.ETUDIANT) {
             Optional<Etudiant> existingEtudiantOpt = etudiantRepository.findByEmail(email);
             if (existingEtudiantOpt.isPresent()) {
-                Etudiant etudiant = existingEtudiantOpt.get();
-                etudiant.setPassword(encodedPassword);
-                etudiant.setNom(nom);
-                etudiantRepository.save(etudiant);
-                System.out.println("Updated existing Etudiant: " + email);
+                System.out.println("Etudiant already exists, seeding skipped to preserve existing data: " + email);
             } else {
                 Etudiant etudiant = new Etudiant();
                 etudiant.setNom(nom);
