@@ -43,6 +43,19 @@ public class ForumReply {
     @Column(length = 255)
     private String reportReason;
 
+    @Builder.Default
+    private int likesCount = 0;
+
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "parent_reply_id")
+    @JsonIgnoreProperties({"childReplies", "post", "parentReply"})
+    private ForumReply parentReply;
+
+    @OneToMany(mappedBy = "parentReply", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Builder.Default
+    @JsonIgnoreProperties({"parentReply", "post"})
+    private java.util.List<ForumReply> childReplies = new java.util.ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

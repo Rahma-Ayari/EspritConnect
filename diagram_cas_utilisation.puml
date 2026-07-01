@@ -1,0 +1,63 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+
+actor "Visiteur" as V
+actor "Étudiant" as E
+actor "Alumni" as AL
+actor "Entreprise" as EN
+actor "Administrateur" as AD
+
+rectangle "ESPRIT Connect" {
+    usecase "S'inscrire" as UC1
+    usecase "S'authentifier (2FA)" as UC2
+    usecase "Gérer son profil" as UC3
+    usecase "Consulter les offres" as UC4
+    usecase "Postuler aux offres" as UC5
+    usecase "Publier et gérer des offres" as UC6
+    usecase "Participer au Forum" as UC7
+    usecase "Gérer le mentorat" as UC8
+    usecase "Consulter les événements" as UC9
+    usecase "Modérer le contenu" as UC10
+    usecase "Gérer les utilisateurs" as UC11
+    usecase "Gérer la configuration" as UC12
+}
+
+V --> UC1
+V --> UC2
+V --> UC4
+
+E --> UC2
+E --> UC3
+E --> UC4
+E --> UC5
+E --> UC7
+E --> UC8
+E --> UC9
+
+AL --> UC2
+AL --> UC3
+AL --> UC4
+AL --> UC5
+AL --> UC7
+AL --> UC8
+AL --> UC9
+
+EN --> UC2
+EN --> UC3
+EN --> UC6
+
+AD --> UC2
+AD --> UC10
+AD --> UC11
+AD --> UC12
+
+E -up-|> V
+AL -up-|> E
+
+@enduml
