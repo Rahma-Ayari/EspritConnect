@@ -28,11 +28,8 @@ public class UploadStaticResourceConfig implements WebMvcConfigurer {
             location = location + "/";
         }
 
-        // With context path /espritconnect, the handler pattern should be /uploads/**
-        // This will match requests to /espritconnect/uploads/**
         registry
                 .addResourceHandler("/uploads/**")
-                .addResourceLocations(location)
-                .setCachePeriod(3600); // Cache for 1 hour
+                .addResourceLocations(location);
     }
 }

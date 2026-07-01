@@ -131,33 +131,6 @@ public class ChatbotAiService {
         return null;
     }
 
-    public String generateContent(String systemPrompt, String userMessage) {
-        if (!isConfigured()) {
-            return null;
-        }
-
-        for (ChatbotProviderConfig provider : buildProviderChain()) {
-            try {
-                String reply = callProvider(provider, userMessage, systemPrompt, List.of());
-                if (reply != null && !reply.isBlank()) {
-                    log.debug("Chatbot: generated content via {}", provider.name());
-                    return reply;
-                }
-            } catch (RestClientResponseException e) {
-                log.warn("Chatbot {} failed ({}): {}", provider.name(), e.getStatusCode(), e.getResponseBodyAsString());
-                if ("gemini".equalsIgnoreCase(provider.provider())) {
-                    String geminiRetry = tryAlternateGeminiModels(provider, userMessage, systemPrompt, List.of());
-                    if (geminiRetry != null && !geminiRetry.isBlank()) {
-                        return geminiRetry;
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Chatbot {} error: {}", provider.name(), e.getMessage());
-            }
-        }
-        return null;
-    }
-
     private List<ChatbotProviderConfig> buildProviderChain() {
         List<ChatbotProviderConfig> chain = new java.util.ArrayList<>();
         chain.add(new ChatbotProviderConfig(

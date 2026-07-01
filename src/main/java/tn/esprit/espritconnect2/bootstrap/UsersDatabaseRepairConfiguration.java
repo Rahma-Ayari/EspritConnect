@@ -1,13 +1,11 @@
 package tn.esprit.espritconnect2.bootstrap;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -21,12 +19,10 @@ import java.util.Set;
 
 /**
  * Runs UUID schema repair before Hibernate tries to recreate foreign keys.
- * Can be disabled via app.database.repair.enabled=false
  */
 @Configuration
 @AutoConfigureAfter(DataSourceAutoConfiguration.class)
 @AutoConfigureBefore(HibernateJpaAutoConfiguration.class)
-@ConditionalOnProperty(name = "app.database.repair.enabled", havingValue = "true", matchIfMissing = true)
 public class UsersDatabaseRepairConfiguration {
 
     public static final String REPAIR_BEAN_NAME = "usersDatabaseEarlyRepair";
