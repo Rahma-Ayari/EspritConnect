@@ -42,12 +42,6 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.Collections;
-
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
 
 @Service
 @RequiredArgsConstructor
@@ -71,16 +65,12 @@ public class AuthServiceImpl implements IAuthService {
     private final HttpServletRequest request;
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
-    private final ICaptchaService captchaService;
     
     @Value("${app.frontend.url:http://localhost:4200}")
     private String frontendUrl;
     
     @Value("${app.email-verification.expose-link-on-register:false}")
     private boolean exposeVerificationLinkOnRegister;
-
-    @Value("${app.google.client-id:YOUR_GOOGLE_CLIENT_ID_HERE}")
-    private String googleClientId;
 
     private String getClientIp(HttpServletRequest request) {
         String xfHeader = request.getHeader("X-Forwarded-For");
@@ -92,8 +82,6 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     public AuthResponse login(LoginRequest req) {
-        captchaService.validateForAuth(req.getCaptchaId(), req.getCaptchaToken(), getClientIp(request));
-
         Optional<User> userOpt = userRepository.findByEmail(req.getEmail());
         if (userOpt.isPresent()) {
             User user = userOpt.get();
@@ -293,8 +281,6 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     @Transactional
     public RegisterResponse register(RegisterRequest req) {
-        captchaService.validateForAuth(req.getCaptchaId(), req.getCaptchaToken(), getClientIp(request));
-
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("Un compte avec cet email existe déjà.");
         }
@@ -509,9 +495,7 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     @Transactional
-    public void requestPasswordReset(String email, Long captchaId, String captchaToken) {
-        captchaService.validateForAuth(captchaId, captchaToken, getClientIp(request));
-
+    public void requestPasswordReset(String email) {
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
             return; // Fail silently for security
@@ -549,76 +533,5 @@ public class AuthServiceImpl implements IAuthService {
         userRepository.save(user);
 
         passwordResetTokenRepository.delete(resetToken);
-    }
-
-    @Override
-    @Transactional
-    public AuthResponse googleLogin(String idTokenString) {
-        try {
-            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                    .setAudience(Collections.singletonList(googleClientId))
-                    .build();
-
-            GoogleIdToken idToken = verifier.verify(idTokenString);
-            if (idToken != null) {
-                GoogleIdToken.Payload payload = idToken.getPayload();
-                String email = payload.getEmail();
-                String name = (String) payload.get("name");
-
-                Optional<User> userOpt = userRepository.findByEmail(email);
-                User user;
-                if (userOpt.isPresent()) {
-                    user = userOpt.get();
-                    if (!user.isEnabled()) {
-                        throw new DisabledException("Votre compte est en attente de validation par l'administrateur.");
-                    }
-                } else {
-                    user = User.builder()
-                            .nom(name)
-                            .email(email)
-                            .password(passwordEncoder.encode(UUID.randomUUID().toString()))
-                            .role(Role.ETUDIANT)
-                            .enabled(true)
-                            .emailVerified(true)
-                            .status(Status.ACCEPTEE)
-                            .build();
-                    userRepository.save(user);
-
-                    Etudiant etudiant = new Etudiant();
-                    etudiant.setNom(name);
-                    etudiant.setEmail(email);
-                    etudiant.setPassword(user.getPassword());
-                    etudiant.setScoreReadiness(0);
-                    etudiant.setDateInscription(new Date());
-                    etudiantRepository.save(etudiant);
-                }
-
-                loginHistoryService.recordLoginAttempt(user, getClientIp(request), request.getHeader("User-Agent"), "SUCCESS_GOOGLE");
-
-                String token = jwtUtils.generateToken(user);
-                int score = 0;
-                if (user.getRole() == Role.ETUDIANT) {
-                    score = etudiantRepository.findByEmail(user.getEmail())
-                            .map(e -> e.getScoreReadiness() != null ? e.getScoreReadiness() : 0)
-                            .orElse(0);
-                }
-
-                return AuthResponse.builder()
-                        .token(token)
-                        .type("Bearer")
-                        .role(user.getRole().name())
-                        .nom(user.getNom())
-                        .email(user.getEmail())
-                        .scoreReadiness(score)
-                        .userId(user.getId().toString())
-                        .build();
-
-            } else {
-                throw new BadCredentialsException("Token Google invalide.");
-            }
-        } catch (Exception e) {
-            log.error("Erreur lors de la vérification du token Google", e);
-            throw new BadCredentialsException("Échec de l'authentification Google.");
-        }
     }
 }

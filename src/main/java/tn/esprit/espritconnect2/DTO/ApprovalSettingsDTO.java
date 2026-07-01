@@ -24,7 +24,7 @@ public class ApprovalSettingsDTO {
     private boolean notifyUserOnApproval = true;
     
     @Builder.Default
-    private boolean notifyUserOnDecline = true;
+    private boolean notifyUserOnDecline = false;
     
     @Builder.Default
     private String autoApproveDomain = "esprit.tn";

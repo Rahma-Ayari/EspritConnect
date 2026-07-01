@@ -15,8 +15,6 @@ import tn.esprit.espritconnect2.Entitie.Role;
 import tn.esprit.espritconnect2.Entitie.User;
 import tn.esprit.espritconnect2.Repository.AdministrateurRepository;
 import tn.esprit.espritconnect2.Repository.UserRepository;
-import tn.esprit.espritconnect2.Service.emailBackOffice.communications.EmailDispatchService;
-import tn.esprit.espritconnect2.Service.emailBackOffice.EspritConnectEmailTemplate;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -35,8 +33,6 @@ public class EmailServiceImpl implements IEmailService {
     private final AdministrateurRepository administrateurRepository;
     private final UserRepository userRepository;
     private final ApprovalSettingsService approvalSettingsService;
-    private final EmailDispatchService emailDispatchService;
-    private final EspritConnectEmailTemplate emailTemplate;
 
     @Value("${app.mail.from}")
     private String fromEmail;
@@ -134,8 +130,13 @@ public class EmailServiceImpl implements IEmailService {
             return;
         }
 
+        Context context = new Context(Locale.FRENCH);
+        context.setVariable("userName", user.getNom());
+        context.setVariable("loginUrl", frontendUrl + "/login");
+
+        String htmlContent = templateEngine.process("email/user-approved", context);
+
         try {
-            String htmlContent = buildApprovalEmailContent(user);
             sendHtmlEmail(user.getEmail(), "Votre compte EspritConnect a été approuvé", htmlContent);
             log.info("Approval notification sent to user: {}", user.getEmail());
         } catch (Exception e) {
@@ -151,48 +152,18 @@ public class EmailServiceImpl implements IEmailService {
             return;
         }
 
+        Context context = new Context(Locale.FRENCH);
+        context.setVariable("userName", user.getNom());
+        context.setVariable("contactEmail", "support@esprit.tn");
+
+        String htmlContent = templateEngine.process("email/user-declined", context);
+
         try {
-            String htmlContent = buildDeclineEmailContent(user);
-            sendHtmlEmail(user.getEmail(), "Votre demande d'inscription EspritConnect a été refusée", htmlContent);
+            sendHtmlEmail(user.getEmail(), "Votre demande d'inscription EspritConnect", htmlContent);
             log.info("Decline notification sent to user: {}", user.getEmail());
         } catch (Exception e) {
             log.error("Failed to send decline notification to user: {}", user.getEmail(), e);
         }
-    }
-
-    private String buildApprovalEmailContent(User user) {
-        String loginUrl = frontendUrl + "/login";
-        return """
-            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
-            <div style="max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px">
-              <h2 style="color:#16a34a;margin-top:0">Votre compte a été approuvé</h2>
-              <p>Bonjour <strong>%s</strong>,</p>
-              <p>Bonne nouvelle ! Votre demande d'inscription sur <strong>EspritConnect</strong> a été acceptée par un administrateur.</p>
-              <p>Vous pouvez dès maintenant vous connecter à la plateforme :</p>
-              <p style="text-align:center;margin-top:25px">
-                <a href="%s" style="background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block">Se connecter</a>
-              </p>
-              <p style="color:#666;font-size:12px">Si le bouton ne fonctionne pas, copiez ce lien : %s</p>
-              <p style="color:#666;font-size:12px;margin-top:20px">Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
-            </div>
-            </body></html>
-            """.formatted(user.getNom(), loginUrl, loginUrl);
-    }
-
-    private String buildDeclineEmailContent(User user) {
-        String contactEmail = "support@esprit.tn";
-        return """
-            <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
-            <div style="max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px">
-              <h2 style="color:#dc2626;margin-top:0">Votre demande d'inscription a été refusée</h2>
-              <p>Bonjour <strong>%s</strong>,</p>
-              <p>Nous vous informons que votre demande d'inscription sur <strong>EspritConnect</strong> n'a pas été acceptée par un administrateur.</p>
-              <p>Si vous pensez qu'il s'agit d'une erreur ou si vous souhaitez obtenir plus d'informations, vous pouvez contacter notre équipe à l'adresse :</p>
-              <p><a href="mailto:%s" style="color:#dc2626;font-weight:bold">%s</a></p>
-              <p style="color:#666;font-size:12px;margin-top:20px">Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
-            </div>
-            </body></html>
-            """.formatted(user.getNom(), contactEmail, contactEmail);
     }
 
     @Override
@@ -386,127 +357,6 @@ public class EmailServiceImpl implements IEmailService {
         } catch (Exception e) {
             log.error("Failed to send account lockout email to: {}", user.getEmail(), e);
         }
-    }
-
-    @Override
-    public void sendApplicationConfirmation(String studentEmail, String studentName, String jobTitle, String companyName) {
-        String intro = """
-            <p style="margin:0 0 10px;">Your application for <strong>%s</strong> at <strong>%s</strong> has been successfully submitted on <b>ESPRIT Connect</b>.</p>
-            <p style="margin:0;">You will receive an email as soon as the company reviews your application.</p>
-            """.formatted(escapeHtml(jobTitle), escapeHtml(companyName));
-        String card = emailTemplate.cardTitle("Application received")
-                + emailTemplate.cardBody("<p style=\"margin:0;\">Track your progress from <strong>My Applications</strong>.</p>");
-        sendBrandedApplicationEmail(
-                studentEmail,
-                studentName,
-                "Application confirmation — " + safe(jobTitle),
-                intro,
-                card,
-                frontendUrl + "/dashboard/jobs/applications",
-                "View my applications"
-        );
-    }
-
-    @Override
-    public void sendApplicationProceeding(String studentEmail, String studentName, String jobTitle, String companyName) {
-        String intro = """
-            <p style="margin:0 0 10px;">Good news! <strong>%s</strong> would like to move forward with your application for <strong>%s</strong>.</p>
-            <p style="margin:0;">The next step is an interview, which will be scheduled soon. The company or our team will contact you to arrange a time.</p>
-            """.formatted(escapeHtml(companyName), escapeHtml(jobTitle));
-        String card = emailTemplate.cardTitle("Next step: interview")
-                + emailTemplate.cardBody("""
-                    <p style="margin:0 0 8px;">Your profile caught the recruiter's attention.</p>
-                    <p style="margin:0;">Check <strong>My Applications</strong> to follow your status in real time.</p>
-                    """);
-        sendBrandedApplicationEmail(
-                studentEmail,
-                studentName,
-                "Your application is moving forward — interview upcoming",
-                intro,
-                card,
-                frontendUrl + "/dashboard/jobs/applications",
-                "View my applications"
-        );
-    }
-
-    @Override
-    public void sendApplicationAccepted(String studentEmail, String studentName, String jobTitle, String companyName) {
-        String intro = """
-            <p style="margin:0 0 10px;"><strong>Congratulations %s!</strong></p>
-            <p style="margin:0 0 10px;">Your application for <strong>%s</strong> at <strong>%s</strong> has been <strong>accepted</strong>.</p>
-            <p style="margin:0;">A final interview will be scheduled soon. The company will contact you with the details.</p>
-            """.formatted(escapeHtml(studentName), escapeHtml(jobTitle), escapeHtml(companyName));
-        String card = emailTemplate.cardTitle("Application accepted")
-                + emailTemplate.cardBody("""
-                    <p style="margin:0 0 8px;">The entire ESPRIT Connect team wishes you the best of luck in the next steps.</p>
-                    <p style="margin:0;">See the full details on your dashboard.</p>
-                    """);
-        sendBrandedApplicationEmail(
-                studentEmail,
-                studentName,
-                "Congratulations — application accepted",
-                intro,
-                card,
-                frontendUrl + "/dashboard/jobs/applications",
-                "View my applications"
-        );
-    }
-
-    @Override
-    public void sendApplicationRejected(String studentEmail, String studentName, String jobTitle, String companyName) {
-        String intro = """
-            <p style="margin:0 0 10px;">We regret to inform you that your application for <strong>%s</strong> at <strong>%s</strong> was not selected at this stage.</p>
-            <p style="margin:0;">We encourage you to keep exploring opportunities on ESPRIT Connect — other roles may be a better fit for your profile.</p>
-            """.formatted(escapeHtml(jobTitle), escapeHtml(companyName));
-        String card = emailTemplate.cardTitle("Application update")
-                + emailTemplate.cardBody("""
-                    <p style="margin:0 0 8px;">This outcome does not reflect your abilities. Every hiring process is different.</p>
-                    <p style="margin:0;">Discover other roles that may suit your profile.</p>
-                    """);
-        sendBrandedApplicationEmail(
-                studentEmail,
-                studentName,
-                "Update on your application",
-                intro,
-                card,
-                frontendUrl + "/dashboard/jobs/discover",
-                "Discover more jobs"
-        );
-    }
-
-    private void sendBrandedApplicationEmail(
-            String studentEmail,
-            String studentName,
-            String subject,
-            String introHtml,
-            String cardHtml,
-            String ctaUrl,
-            String ctaLabel
-    ) {
-        if (studentEmail == null || studentEmail.isBlank()) {
-            log.error("Application email skipped: recipient email is blank (subject: {})", subject);
-            return;
-        }
-        String safeName = studentName != null && !studentName.isBlank() ? studentName : "student";
-        String html = emailTemplate.build(safeName, introHtml, cardHtml, ctaUrl, ctaLabel);
-        try {
-            emailDispatchService.sendHtml(studentEmail.trim(), fromEmail, subject, html);
-            log.info("Application email sent to {} — {}", studentEmail, subject);
-        } catch (Exception e) {
-            log.error("Failed to send application email to {}: {}", studentEmail, e.getMessage(), e);
-        }
-    }
-
-    private String safe(String value) {
-        return value != null && !value.isBlank() ? value : "the offer";
-    }
-
-    private String escapeHtml(String value) {
-        if (value == null) return "";
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;");
     }
 
     private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException, UnsupportedEncodingException {

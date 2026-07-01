@@ -31,8 +31,9 @@ public class CandidatureController {
     @PostMapping("/me")
     public ResponseEntity<CandidatureResponseDTO> applyAsCurrentUser(
             @Valid @RequestBody CandidatureApplyMeDTO dto) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(candidatureService.createForEmail(currentEmail(), dto));
+                .body(candidatureService.createForEmail(auth.getName(), dto));
     }
 
     @GetMapping("/student/{studentId}")
@@ -56,14 +57,5 @@ public class CandidatureController {
     public ResponseEntity<Void> cancel(@PathVariable Long id) {
         candidatureService.cancel(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private String currentEmail() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getName() == null || "anonymousUser".equals(auth.getName())) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "Authentication required to submit an application");
-        }
-        return auth.getName();
     }
 }

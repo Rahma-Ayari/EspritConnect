@@ -1,12 +1,10 @@
 package tn.esprit.espritconnect2.Service;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import tn.esprit.espritconnect2.DTO.AIJobGenerateRequestDTO;
 import tn.esprit.espritconnect2.DTO.AIJobGenerateResponseDTO;
 import tn.esprit.espritconnect2.DTO.AIImproveTextRequestDTO;
-import tn.esprit.espritconnect2.ai.JobsRecruitmentAiService;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,30 +15,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class JobAIService {
-
-    private final JobsRecruitmentAiService llmService;
 
     public AIJobGenerateResponseDTO generateJobDescription(AIJobGenerateRequestDTO request) {
         validateGenerateRequest(request);
-        if (llmService.isConfigured()) {
-            return llmService.generateJobDescription(request);
-        }
-        return generateRuleBased(request);
-    }
 
-    public AIJobGenerateResponseDTO improveJobDescription(AIImproveTextRequestDTO request) {
-        if (request == null || !StringUtils.hasText(request.getOriginalText())) {
-            throw new IllegalArgumentException("Original text is required");
-        }
-        if (llmService.isConfigured()) {
-            return llmService.improveJobDescription(request);
-        }
-        return improveRuleBased(request);
-    }
-
-    private AIJobGenerateResponseDTO generateRuleBased(AIJobGenerateRequestDTO request) {
         String lang = normalizeLanguage(request.getOutputLanguage());
         String title = resolveTitle(request);
         String department = resolveDepartment(request);
@@ -58,11 +37,15 @@ public class JobAIService {
         response.setRequirements(buildRequirements(lang, experience, skills, prompt));
         response.setBenefits(buildBenefits(lang, contractType));
         response.setKeywords(buildKeywords(title, department, experience, skills));
-        response.setAiDisclaimer(localizedDisclaimer(lang) + " (Rule-based fallback — configure GEMINI_API_KEY for real AI.)");
+        response.setAiDisclaimer(localizedDisclaimer(lang));
         return response;
     }
 
-    private AIJobGenerateResponseDTO improveRuleBased(AIImproveTextRequestDTO request) {
+    public AIJobGenerateResponseDTO improveJobDescription(AIImproveTextRequestDTO request) {
+        if (request == null || !StringUtils.hasText(request.getOriginalText())) {
+            throw new IllegalArgumentException("Original text is required");
+        }
+
         String lang = normalizeLanguage(request.getOutputLanguage());
         String title = StringUtils.hasText(request.getJobTitle()) ? request.getJobTitle().trim() : "Job Offer";
         String improved = request.getOriginalText().trim();
@@ -77,7 +60,7 @@ public class JobAIService {
         response.setRequirements(buildRequirements(lang, "INTERMEDIATE", List.of(), request.getOriginalText()));
         response.setBenefits(buildBenefits(lang, "EMPLOI"));
         response.setKeywords(List.of(title, "professional", "teamwork"));
-        response.setAiDisclaimer(localizedDisclaimer(lang) + " (Rule-based fallback — configure GEMINI_API_KEY for real AI.)");
+        response.setAiDisclaimer(localizedDisclaimer(lang));
         return response;
     }
 

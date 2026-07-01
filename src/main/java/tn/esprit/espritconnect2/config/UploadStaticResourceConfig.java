@@ -1,4 +1,4 @@
-package tn.esprit.espritconnect2.Config;
+package tn.esprit.espritconnect2.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;

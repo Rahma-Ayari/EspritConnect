@@ -10,7 +10,6 @@ public class AIJobGenerateResponseDTO {
     private String requirements;
     private String benefits;
     private List<String> keywords;
-    private String recruitmentText;
     private String aiDisclaimer;
     private String suggestedTitle;
     private List<String> suggestedSkills;

@@ -81,16 +81,6 @@ public class AuthController {
                     .body(Map.of("message", e.getMessage()));
         }
     }
-    @PostMapping("/google-login")
-    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleLoginRequest req) {
-        try {
-            AuthResponse response = authService.googleLogin(req.getIdToken());
-            return ResponseEntity.ok(response);
-        } catch (BadCredentialsException | org.springframework.security.authentication.DisabledException e) {
-            return ResponseEntity.status(401)
-                    .body(Map.of("message", e.getMessage()));
-        }
-    }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
@@ -320,8 +310,12 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest body) {
-        authService.requestPasswordReset(body.getEmail(), body.getCaptchaId(), body.getCaptchaToken());
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "L'email est requis."));
+        }
+        authService.requestPasswordReset(email);
         return ResponseEntity.ok(Map.of("message", "Si cet email correspond à un compte existant, un lien de réinitialisation vous a été envoyé."));
     }
 

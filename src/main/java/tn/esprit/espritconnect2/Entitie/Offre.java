@@ -75,12 +75,7 @@ public class Offre {
     
     @Column(columnDefinition = "TEXT")
     private String benefits;
-
-    // External application form URL (e.g. company site / Google Form).
-    // When set, this offer uses "external apply" (redirect). When blank, it uses in-platform "easy apply".
-    @Column(name = "application_url", length = 1000)
-    private String applicationUrl;
-
+    
     private Boolean isPinned = false;
 
     @Column(name = "is_archived", nullable = false)

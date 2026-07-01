@@ -32,16 +32,11 @@ public class ApprovalSettingsService {
                     .emailNotificationsOnNewRegistration(true)
                     .requireEmailVerification(true)
                     .notifyUserOnApproval(true)
-                    .notifyUserOnDecline(true)
+                    .notifyUserOnDecline(false)
                     .autoApproveDomain("esprit.tn")
                     .build();
             return repository.save(defaultSettings);
         });
-        if (!settings.isNotifyUserOnDecline()) {
-            settings.setNotifyUserOnDecline(true);
-            settings = repository.save(settings);
-            log.info("Enabled notifyUserOnDecline in approval settings");
-        }
         currentSettings.set(mapToDTO(settings));
         log.info("Approval settings loaded from database: autoApproveEspritEmails={}", settings.isAutoApproveEspritEmails());
     }
@@ -128,7 +123,7 @@ public class ApprovalSettingsService {
                 .emailNotificationsOnNewRegistration(true)
                 .requireEmailVerification(false)
                 .notifyUserOnApproval(true)
-                .notifyUserOnDecline(true)
+                .notifyUserOnDecline(false)
                 .autoApproveDomain("esprit.tn")
                 .build();
         updateSettings(defaultDTO);

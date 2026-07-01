@@ -7,7 +7,6 @@ import tn.esprit.espritconnect2.DTO.JobOfferDTO;
 import tn.esprit.espritconnect2.Entitie.*;
 import tn.esprit.espritconnect2.Repository.OffreRepository;
 import tn.esprit.espritconnect2.Repository.EntrepriseRepository;
-import tn.esprit.espritconnect2.Repository.CandidatureRepository;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -23,33 +22,26 @@ public class JobOfferService {
     @Autowired
     private EntrepriseRepository entrepriseRepository;
 
-    @Autowired
-    private CandidatureRepository candidatureRepository;
-
     // Get all jobs with filtering and pagination
     public Map<String, Object> getJobs(String search, List<String> statuses, List<String> contractTypes,
-                                       String department, String location, Long entrepriseId,
-                                       String sortBy, String sortOrder, int page, int limit) {
-        return filterJobs(search, statuses, contractTypes, department, location, entrepriseId,
-                sortBy, sortOrder, page, limit, false);
+                                       String department, String location, String sortBy, String sortOrder,
+                                       int page, int limit) {
+        return filterJobs(search, statuses, contractTypes, department, location, sortBy, sortOrder, page, limit, false);
     }
 
     // Get archived jobs only
     public Map<String, Object> getArchivedJobs(String search, String sortBy, String sortOrder, int page, int limit) {
-        return filterJobs(search, null, null, null, null, null, sortBy, sortOrder, page, limit, true);
+        return filterJobs(search, null, null, null, null, sortBy, sortOrder, page, limit, true);
     }
 
     private Map<String, Object> filterJobs(String search, List<String> statuses, List<String> contractTypes,
-                                             String department, String location, Long entrepriseId,
-                                             String sortBy, String sortOrder,
+                                             String department, String location, String sortBy, String sortOrder,
                                              int page, int limit, boolean archivedOnly) {
         List<Offre> allOffres = offreRepository.findAll();
         List<Offre> filteredOffres = allOffres.stream()
             .filter(offre -> archivedOnly
                 ? Boolean.TRUE.equals(offre.getIsArchived())
                 : !Boolean.TRUE.equals(offre.getIsArchived()))
-            .filter(offre -> entrepriseId == null ||
-                   (offre.getEntreprise() != null && entrepriseId.equals(offre.getEntreprise().getIdEntreprise())))
             .filter(offre -> search == null || search.isEmpty() ||
                    offre.getTitre().toLowerCase().contains(search.toLowerCase()) ||
                    (offre.getDepartment() != null && offre.getDepartment().toLowerCase().contains(search.toLowerCase())) ||
@@ -85,8 +77,8 @@ public class JobOfferService {
             case "title" -> direction * nullSafeString(a.getTitre()).compareToIgnoreCase(nullSafeString(b.getTitre()));
             case "deadline" -> direction * compareDates(a.getDeadline(), b.getDeadline());
             case "applications" -> direction * Integer.compare(
-                candidatureRepository.findByOffreIdOffre(a.getIdOffre()).size(),
-                candidatureRepository.findByOffreIdOffre(b.getIdOffre()).size()
+                a.getCandidatures() != null ? a.getCandidatures().size() : 0,
+                b.getCandidatures() != null ? b.getCandidatures().size() : 0
             );
             default -> direction * compareDates(a.getDatePublication(), b.getDatePublication());
         };
@@ -179,7 +171,6 @@ public class JobOfferService {
         duplicate.setResponsibilities(original.getResponsibilities());
         duplicate.setRequirements(original.getRequirements());
         duplicate.setBenefits(original.getBenefits());
-        duplicate.setApplicationUrl(original.getApplicationUrl());
         duplicate.setEntreprise(original.getEntreprise());
         duplicate.setStatutOfrre(Status.DRAFT);
         duplicate.setDatePublication(new Date());
@@ -299,9 +290,8 @@ public class JobOfferService {
         dto.setResponsibilities(offre.getResponsibilities());
         dto.setRequirements(offre.getRequirements());
         dto.setBenefits(offre.getBenefits());
-        dto.setApplicationUrl(offre.getApplicationUrl());
         dto.setStatus(offre.getStatutOfrre() != null ? offre.getStatutOfrre().toString() : "ACTIVE");
-        dto.setApplicationCount(candidatureRepository.findByOffreIdOffre(offre.getIdOffre()).size());
+        dto.setApplicationCount(offre.getCandidatures() != null ? offre.getCandidatures().size() : 0);
         dto.setIsPinned(offre.getIsPinned());
         dto.setIsArchived(offre.getIsArchived());
         if (offre.getEntreprise() != null) {
@@ -355,15 +345,6 @@ public class JobOfferService {
         offre.setResponsibilities(dto.getResponsibilities());
         offre.setRequirements(dto.getRequirements());
         offre.setBenefits(dto.getBenefits());
-        offre.setApplicationUrl(dto.getApplicationUrl());
-
-        if (dto.getStatus() != null && !dto.getStatus().isBlank()) {
-            try {
-                offre.setStatutOfrre(Status.valueOf(dto.getStatus().trim().toUpperCase(Locale.ROOT)));
-            } catch (IllegalArgumentException ignored) {
-                // keep existing status when value is unknown
-            }
-        }
         
         if (dto.getEntrepriseId() != null) {
             Entreprise entreprise = entrepriseRepository.findById(dto.getEntrepriseId())
