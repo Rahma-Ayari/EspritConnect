@@ -32,6 +32,13 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     private final IEmailService emailService;
     private final ApprovalSettingsService approvalSettingsService;
     private final PasswordEncoder passwordEncoder;
+    private final tn.esprit.espritconnect2.Repository.LoginHistoryRepository loginHistoryRepository;
+    private final tn.esprit.espritconnect2.Repository.ActivityLogRepository activityLogRepository;
+    private final tn.esprit.espritconnect2.Repository.ProfilRepository profilRepository;
+    private final tn.esprit.espritconnect2.Repository.EntrepriseRepository entrepriseRepository;
+    
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     private static final String[] AVATAR_COLORS = {
         "#E53935", "#D81B60", "#8E24AA", "#5E35B1", "#3949AB",
@@ -281,6 +288,21 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
     }
 
     private void deleteRelatedEntities(User user) {
+        String userIdStr = user.getId().toString();
+        
+        // 1. Delete basic user tokens/devices
+        entityManager.createNativeQuery("DELETE FROM user_devices WHERE user_id = :uid")
+                     .setParameter("uid", userIdStr).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM email_verification_tokens WHERE user_id = :uid")
+                     .setParameter("uid", userIdStr).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM password_reset_token WHERE user_id = :uid")
+                     .setParameter("uid", userIdStr).executeUpdate();
+
+        // 2. Delete login history and activity logs
+        loginHistoryRepository.deleteByUser(user);
+        activityLogRepository.deleteByUserId(user.getId());
+        
+        // 3. Delete Role specific entities FIRST to avoid foreign key constraints on profile
         if (user.getRole() == Role.ETUDIANT) {
             etudiantRepository.findByEmail(user.getEmail())
                     .ifPresent(etudiantRepository::delete);
@@ -289,7 +311,22 @@ public class UserApprovalServiceImpl implements IUserApprovalService {
                     .filter(a -> a.getEmail().equals(user.getEmail()))
                     .findFirst()
                     .ifPresent(alumniRepository::delete);
+        } else if (user.getRole() == Role.ENTREPRISE) {
+            entrepriseRepository.findByEmail(user.getEmail())
+                    .ifPresent(entrepriseRepository::delete);
         }
+
+        // 4. Delete Profile and its dependencies
+        profilRepository.findByUserId(user.getEmail()).ifPresent(profil -> {
+            Long profilId = profil.getIdProfil();
+            // Delete notifications and messages tied to profile
+            entityManager.createNativeQuery("DELETE FROM notification WHERE profil_id_profil = :pid")
+                         .setParameter("pid", profilId).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM message WHERE profil_id_profil = :pid")
+                         .setParameter("pid", profilId).executeUpdate();
+            
+            profilRepository.delete(profil);
+        });
     }
 
     @Override

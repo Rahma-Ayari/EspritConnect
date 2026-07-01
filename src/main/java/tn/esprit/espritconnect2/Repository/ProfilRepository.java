@@ -16,4 +16,8 @@ public interface ProfilRepository extends JpaRepository<Profil, Long> {
 
     // Vérifier si un userId est déjà utilisé (éviter les doublons)
     boolean existsByUserId(String userId);
+
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    void deleteByUserId(String userId);
 }

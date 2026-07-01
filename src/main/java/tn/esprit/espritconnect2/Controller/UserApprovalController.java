@@ -78,9 +78,20 @@ public class UserApprovalController {
     }
 
     @DeleteMapping("/{userId}")
+    @tn.esprit.espritconnect2.annotation.TrackActivity(action = "DELETE_USER", entity = "User", description = "Admin deleted a user account")
     public ResponseEntity<Map<String, String>> deleteUser(@PathVariable UUID userId) {
-        userApprovalService.deleteUser(userId);
-        return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+        try {
+            userApprovalService.deleteUser(userId);
+            return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+        } catch (Exception e) {
+            String errorMessage = e.getMessage();
+            Throwable cause = e.getCause();
+            while (cause != null) {
+                errorMessage += " | Cause: " + cause.getMessage();
+                cause = cause.getCause();
+            }
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to delete user", "details", errorMessage));
+        }
     }
 
     @PostMapping("/bulk-approve")

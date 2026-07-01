@@ -12,6 +12,7 @@ import tn.esprit.espritconnect2.security.UserAgentParser;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -52,5 +53,10 @@ public class LoginHistoryService {
 
     public List<LoginHistory> getLoginHistory(User user) {
         return loginHistoryRepository.findTop10ByUserOrderByLoginTimeDesc(user);
+    }
+
+    public Optional<LoginHistory> getLastSuccessfulLogin(User user) {
+        return loginHistoryRepository.findFirstByUserAndStatusInOrderByLoginTimeDesc(
+                user, List.of("SUCCESS", "SUCCESS_BACKUP", "SUCCESS_GOOGLE"));
     }
 }

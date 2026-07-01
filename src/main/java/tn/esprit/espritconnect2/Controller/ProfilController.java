@@ -34,8 +34,13 @@ public class ProfilController {
      * Retourne 201 CREATED avec le profil créé.
      */
     @PostMapping
+    @tn.esprit.espritconnect2.annotation.TrackActivity(action = "UPDATE_USER", entity = "Profil", description = "User updated their profile")
     public ResponseEntity<ProfilResponseDTO> creerProfil(
-            @Valid @RequestBody ProfilRequestDTO dto) {
+            @Valid @RequestBody ProfilRequestDTO dto,
+            org.springframework.security.core.Authentication authentication) {
+        if (authentication != null) {
+            dto.setUserId(authentication.getName());
+        }
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(profilService.creerProfil(dto));
@@ -91,9 +96,14 @@ public class ProfilController {
      * Les relations (etudiant, alumni...) ne sont pas modifiables via cet endpoint.
      */
     @PutMapping("/{id}")
+    @tn.esprit.espritconnect2.annotation.TrackActivity(action = "UPDATE_USER", entity = "Profil", description = "User updated their profile")
     public ResponseEntity<ProfilResponseDTO> updateProfil(
             @PathVariable Long id,
-            @Valid @RequestBody ProfilRequestDTO dto) {
+            @Valid @RequestBody ProfilRequestDTO dto,
+            org.springframework.security.core.Authentication authentication) {
+        if (authentication != null) {
+            dto.setUserId(authentication.getName());
+        }
         return ResponseEntity.ok(profilService.updateProfil(id, dto));
     }
 

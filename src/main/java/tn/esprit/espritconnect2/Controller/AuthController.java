@@ -37,6 +37,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserDeviceRepository userDeviceRepository;
+    private final tn.esprit.espritconnect2.Service.ActivityLogService activityLogService;
 
     private User reloadUser(org.springframework.security.core.Authentication auth) {
         User principal = (User) auth.getPrincipal();
@@ -45,9 +46,29 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req, HttpServletRequest httpRequest) {
         try {
             AuthResponse response = authService.login(req);
+
+            // --- Activity Logging ---
+            try {
+                User user = userRepository.findByEmail(req.getEmail()).orElse(null);
+                String ip = httpRequest.getHeader("X-Forwarded-For");
+                if (ip == null || ip.isEmpty()) ip = httpRequest.getRemoteAddr();
+                else ip = ip.split(",")[0].trim();
+                String browser = httpRequest.getHeader("User-Agent");
+
+                if (user != null) {
+                    activityLogService.logActivity(
+                            user.getId(), user.getEmail(), "LOGIN", "User",
+                            user.getId().toString(), "User logged in successfully",
+                            ip, browser);
+                }
+            } catch (Exception logEx) {
+                // Don't break login if logging fails
+                logEx.printStackTrace();
+            }
+
             return ResponseEntity.ok(response);
         } catch (AccountLockedException e) {
             return ResponseEntity.status(423) // Locked

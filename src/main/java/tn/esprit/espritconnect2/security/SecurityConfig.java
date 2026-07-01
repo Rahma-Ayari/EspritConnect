@@ -100,6 +100,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/support/**").permitAll()
                 .requestMatchers("/api/moderation/**").permitAll()
 
+                // Activity Tracking & AI Analysis
+                .requestMatchers("/api/activity/**").permitAll()
+
                 .anyRequest().authenticated()
 
             )

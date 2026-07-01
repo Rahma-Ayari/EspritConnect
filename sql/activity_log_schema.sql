@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS activity_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(36),
+    username VARCHAR(255),
+    action VARCHAR(255),
+    entity VARCHAR(255),
+    entity_id VARCHAR(255),
+    description VARCHAR(1000),
+    ip_address VARCHAR(45),
+    browser VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
