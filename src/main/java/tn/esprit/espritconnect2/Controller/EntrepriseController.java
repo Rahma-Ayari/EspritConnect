@@ -15,7 +15,7 @@ import tn.esprit.espritconnect2.Service.IEntrepriseService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/entreprises")
+@RequestMapping({"/api/entreprises", "/api/companies"})
 @RequiredArgsConstructor
 public class EntrepriseController {
 

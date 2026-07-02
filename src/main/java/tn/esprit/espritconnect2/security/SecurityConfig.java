@@ -81,13 +81,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/student-ai/status").permitAll()
                 .requestMatchers("/api/student-ai/**").authenticated()
                 .requestMatchers("/api/etudiants/me", "/api/alumni/me").authenticated()
-                .requestMatchers("/api/entreprises/*/job-dashboard").permitAll()
-                .requestMatchers("/api/entreprises/*/verification/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/entreprises/*").permitAll()
+                .requestMatchers("/api/entreprises/*/job-dashboard", "/api/companies/*/job-dashboard").permitAll()
+                .requestMatchers("/api/entreprises/*/verification/**", "/api/companies/*/verification/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/entreprises/*", "/api/companies/*").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // Public self-registration: create company without JWT (pending admin approval).
-                .requestMatchers(HttpMethod.POST, "/api/entreprises").permitAll()
-                .requestMatchers("/api/entreprises/**").hasAnyRole("ENTREPRISE", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/entreprises", "/api/companies").permitAll()
+                .requestMatchers("/api/entreprises/**", "/api/companies/**").hasAnyRole("ENTREPRISE", "ADMIN")
 
                 // Forum & Email Communications (back-office & front-office)
                 .requestMatchers("/api/forum/**").permitAll()
