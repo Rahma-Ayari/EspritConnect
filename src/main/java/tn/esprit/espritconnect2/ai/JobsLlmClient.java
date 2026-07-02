@@ -174,7 +174,7 @@ public class JobsLlmClient {
                 }
             } catch (RestClientResponseException e) {
                 int status = e.getStatusCode().value();
-                if ((status == 429 || status == 503) && attempt < maxAttempts) {
+                if (status == 503 && attempt < maxAttempts) {
                     log.warn("AI provider returned {}, retrying ({}/{})", status, attempt, maxAttempts);
                     sleep(1500L * attempt);
                     continue;

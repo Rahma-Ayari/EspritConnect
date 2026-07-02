@@ -67,6 +67,17 @@ public class JobsDashboardAiController {
             return ResponseEntity.ok(supplier.get());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (IllegalStateException e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "AI service unavailable";
+            if (msg.toLowerCase().contains("too many ai requests")) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", msg));
+            }
+            if (msg.toLowerCase().contains("temporarily busy")) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", msg));
+            }
+            log.error("Jobs AI error", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "AI request failed: " + msg));
         } catch (Exception e) {
             log.error("Jobs AI error", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

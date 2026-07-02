@@ -40,6 +40,19 @@ public class JobAIService {
         return improveRuleBased(request);
     }
 
+    /** Used when Gemini/OpenAI quota is exhausted but a key is configured. */
+    public AIJobGenerateResponseDTO generateJobRuleBasedFallback(AIJobGenerateRequestDTO request) {
+        validateGenerateRequest(request);
+        return generateRuleBased(request);
+    }
+
+    public AIJobGenerateResponseDTO improveJobRuleBasedFallback(AIImproveTextRequestDTO request) {
+        if (request == null || !StringUtils.hasText(request.getOriginalText())) {
+            throw new IllegalArgumentException("Original text is required");
+        }
+        return improveRuleBased(request);
+    }
+
     private AIJobGenerateResponseDTO generateRuleBased(AIJobGenerateRequestDTO request) {
         String lang = normalizeLanguage(request.getOutputLanguage());
         String title = resolveTitle(request);

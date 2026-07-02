@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import tn.esprit.espritconnect2.DTO.*;
+import tn.esprit.espritconnect2.Service.JobAIService;
 import tn.esprit.espritconnect2.Entitie.Candidature;
 import tn.esprit.espritconnect2.Entitie.Competence;
 import tn.esprit.espritconnect2.Entitie.Etudiant;
@@ -35,6 +38,10 @@ public class JobsRecruitmentAiService {
     private final EtudiantRepository etudiantRepository;
     private final CandidatureRepository candidatureRepository;
 
+    @Lazy
+    @Autowired
+    private JobAIService jobAIService;
+
     public boolean isConfigured() {
         return properties.isConfigured();
     }
@@ -61,9 +68,17 @@ public class JobsRecruitmentAiService {
                 request.getAdditionalPrompt()
         );
 
-        JobsLlmClient.LlmResult result = llmClient.complete(GenerateJobDescriptionPrompt.SYSTEM, userPrompt);
-        cache.put(cacheKey, result.text(), result.providerLabel(), properties.getCacheTtlMinutes());
-        return wrapGenerate(parseGenerateJson(result.text()), result.providerLabel(), false, lang);
+        try {
+            JobsLlmClient.LlmResult result = llmClient.complete(GenerateJobDescriptionPrompt.SYSTEM, userPrompt);
+            cache.put(cacheKey, result.text(), result.providerLabel(), properties.getCacheTtlMinutes());
+            return wrapGenerate(parseGenerateJson(result.text()), result.providerLabel(), false, lang);
+        } catch (Exception e) {
+            if (isQuotaOrRateLimit(e)) {
+                log.warn("AI quota/rate limit for job generation — using rule-based fallback: {}", e.getMessage());
+                return wrapGenerate(jobAIService.generateJobRuleBasedFallback(request), "Rule-based analytics", false, lang);
+            }
+            throw e;
+        }
     }
 
     public AiJobGenerateWrapperDTO improveJob(AIImproveTextRequestDTO request) {
@@ -83,9 +98,17 @@ public class JobsRecruitmentAiService {
                 request.getJobTitle(),
                 lang
         );
-        JobsLlmClient.LlmResult result = llmClient.complete(ImproveJobDescriptionPrompt.SYSTEM, userPrompt);
-        cache.put(cacheKey, result.text(), result.providerLabel(), properties.getCacheTtlMinutes());
-        return wrapGenerate(parseGenerateJson(result.text()), result.providerLabel(), false, lang);
+        try {
+            JobsLlmClient.LlmResult result = llmClient.complete(ImproveJobDescriptionPrompt.SYSTEM, userPrompt);
+            cache.put(cacheKey, result.text(), result.providerLabel(), properties.getCacheTtlMinutes());
+            return wrapGenerate(parseGenerateJson(result.text()), result.providerLabel(), false, lang);
+        } catch (Exception e) {
+            if (isQuotaOrRateLimit(e)) {
+                log.warn("AI quota/rate limit for job improve — using rule-based fallback: {}", e.getMessage());
+                return wrapGenerate(jobAIService.improveJobRuleBasedFallback(request), "Rule-based analytics", false, lang);
+            }
+            throw e;
+        }
     }
 
     public AiImportExtractResponseDTO extractImport(AiImportExtractRequestDTO request) {
@@ -191,11 +214,20 @@ public class JobsRecruitmentAiService {
             }
         }
 
-        String analyticsData = buildAnalyticsPayload(request);
-        String userPrompt = RecruitmentInsightsPrompt.user(analyticsData);
-        JobsLlmClient.LlmResult result = llmClient.complete(RecruitmentInsightsPrompt.SYSTEM, userPrompt);
-        cache.put(cacheKey, result.text(), result.providerLabel(), properties.getCacheTtlMinutes());
-        return wrapInsights(parseInsightsJson(result.text()), result.providerLabel(), false);
+        try {
+            String analyticsData = buildAnalyticsPayload(request);
+            String userPrompt = RecruitmentInsightsPrompt.user(analyticsData);
+            JobsLlmClient.LlmResult result = llmClient.complete(RecruitmentInsightsPrompt.SYSTEM, userPrompt, 1024);
+            cache.put(cacheKey, result.text(), result.providerLabel(), properties.getCacheTtlMinutes());
+            return wrapInsights(parseInsightsJson(result.text()), result.providerLabel(), false);
+        } catch (Exception e) {
+            if (isQuotaOrRateLimit(e)) {
+                log.warn("AI quota/rate limit for recruitment insights — using rule-based fallback: {}", e.getMessage());
+                AiRecruitmentInsightsResponseDTO fallback = buildRuleBasedInsights(request);
+                return wrapRuleBasedInsights(fallback);
+            }
+            throw e;
+        }
     }
 
     /** Backward-compatible response for JobAIService / offres/ai endpoints */
@@ -442,6 +474,86 @@ public class JobsRecruitmentAiService {
         data.setCached(cached);
         data.setAiDisclaimer("AI-generated recruitment insights based on current dashboard data.");
         return data;
+    }
+
+    private AiRecruitmentInsightsResponseDTO wrapRuleBasedInsights(AiRecruitmentInsightsResponseDTO data) {
+        data.setProvider("Rule-based analytics");
+        data.setCached(false);
+        data.setAiDisclaimer("Insights generated from dashboard metrics. AI quota exceeded — configure billing or wait for daily reset for AI-powered analysis.");
+        return data;
+    }
+
+    private boolean isQuotaOrRateLimit(Throwable e) {
+        Throwable current = e;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                String lower = message.toLowerCase(Locale.ROOT);
+                if (lower.contains("too many ai requests")
+                        || lower.contains("quota")
+                        || lower.contains("rate limit")
+                        || lower.contains("resource_exhausted")
+                        || lower.contains("temporarily busy")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private AiRecruitmentInsightsResponseDTO buildRuleBasedInsights(AiRecruitmentInsightsRequestDTO request) {
+        int totalOffers = safeInt(request.getTotalOffers());
+        int activeOffers = safeInt(request.getActiveOffers());
+        int totalApplications = safeInt(request.getTotalApplications());
+        double avgApps = request.getAvgApplicationsPerOffer() != null ? request.getAvgApplicationsPerOffer() : 0.0;
+
+        List<String> insights = new ArrayList<>();
+        List<String> recommendations = new ArrayList<>();
+
+        insights.add(String.format("You have %d total offers with %d currently active.", totalOffers, activeOffers));
+        insights.add(String.format("Total applications received: %d (avg %.1f per offer).", totalApplications, avgApps));
+
+        if (avgApps < 1.0 && totalOffers > 0) {
+            insights.add("Application volume per offer is low — offers may need better visibility or clearer requirements.");
+            recommendations.add("Review job titles and descriptions to attract more candidates.");
+            recommendations.add("Share active offers on campus channels and professional networks.");
+        } else if (avgApps >= 5.0) {
+            insights.add("Application volume is healthy across your active offers.");
+            recommendations.add("Prioritize reviewing and shortlisting top-matched candidates.");
+        }
+
+        int inactiveOffers = totalOffers - activeOffers;
+        if (inactiveOffers > 0) {
+            insights.add(String.format("%d offer(s) are no longer active — consider archiving or republishing.", inactiveOffers));
+        }
+
+        List<Integer> topScores = request.getTopCandidateScores();
+        if (topScores != null && !topScores.isEmpty()) {
+            int maxScore = topScores.stream().mapToInt(Integer::intValue).max().orElse(0);
+            insights.add(String.format("Best candidate match score in your pipeline: %d%%.", maxScore));
+        } else if (totalApplications > 0) {
+            insights.add("No AI match scores yet — select an offer to run candidate matching.");
+            recommendations.add("Use AI candidate matching to rank applicants by fit.");
+        }
+
+        if (recommendations.isEmpty()) {
+            recommendations.add("Monitor application trends weekly and adjust offer visibility as needed.");
+        }
+
+        String summary = String.format(
+                "Your recruitment funnel has %d offers (%d active) and %d applications, averaging %.1f applications per offer.",
+                totalOffers, activeOffers, totalApplications, avgApps);
+
+        AiRecruitmentInsightsResponseDTO dto = new AiRecruitmentInsightsResponseDTO();
+        dto.setSummary(summary);
+        dto.setInsights(insights);
+        dto.setRecommendations(recommendations);
+        return dto;
+    }
+
+    private int safeInt(Integer value) {
+        return value != null ? value : 0;
     }
 
     private String normalizeLanguage(String language) {
