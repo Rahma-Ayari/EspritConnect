@@ -143,7 +143,7 @@ public class SupportServiceImpl implements ISupportService {
                 .description(req.getDescription())
                 .status(TicketStatus.OPEN)
                 .priority(detectSmartPriority(req.getTitle(), req.getDescription(), req.getPriority()))
-                .attachmentUrl(req.getAttachmentUrl())
+                .attachmentUrl(normalizeAttachmentUrl(req.getAttachmentUrl()))
                 .tags(req.getTags())
                 .creator(creator)
                 .category(category)
@@ -276,7 +276,7 @@ public class SupportServiceImpl implements ISupportService {
                 .sender(sender)
                 .content(req.getContent())
                 .isInternal(req.isInternal())
-                .attachmentUrl(req.getAttachmentUrl())
+                .attachmentUrl(normalizeAttachmentUrl(req.getAttachmentUrl()))
                 .build();
         
         msg = messageRepository.save(msg);
@@ -738,7 +738,7 @@ public class SupportServiceImpl implements ISupportService {
                 .description(t.getDescription())
                 .status(t.getStatus())
                 .priority(t.getPriority())
-                .attachmentUrl(t.getAttachmentUrl())
+                .attachmentUrl(normalizeAttachmentUrl(t.getAttachmentUrl()))
                 .tags(t.getTags())
                 .categoryId(t.getCategory() != null ? t.getCategory().getId() : null)
                 .categoryName(t.getCategory() != null ? t.getCategory().getName() : null)
@@ -761,7 +761,7 @@ public class SupportServiceImpl implements ISupportService {
                 .isInternal(m.isInternal())
                 .senderId(m.getSender() != null ? m.getSender().getId() : null)
                 .senderName(m.getSender() != null ? m.getSender().getNom() : "Unknown User")
-                .attachmentUrl(m.getAttachmentUrl())
+                .attachmentUrl(normalizeAttachmentUrl(m.getAttachmentUrl()))
                 .createdAt(m.getCreatedAt())
                 .build();
     }
@@ -838,5 +838,29 @@ public class SupportServiceImpl implements ISupportService {
             response.put("aiPowered", false);
         }
         return response;
+    }
+
+    /** Canonical relative path: /api/front/support/files/{filename} */
+    private static String normalizeAttachmentUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return url;
+        }
+        String p = url.trim();
+        int schemeIdx = p.indexOf("://");
+        if (schemeIdx >= 0) {
+            int pathStart = p.indexOf('/', schemeIdx + 3);
+            p = pathStart >= 0 ? p.substring(pathStart) : p;
+        }
+        if (p.startsWith("/espritconnect")) {
+            p = p.substring("/espritconnect".length());
+        }
+        while (p.contains("/api/api/")) {
+            p = p.replace("/api/api/", "/api/");
+        }
+        int filesIdx = p.indexOf("support/files/");
+        if (filesIdx >= 0) {
+            return "/api/front/support/files/" + p.substring(filesIdx + "support/files/".length());
+        }
+        return p.startsWith("/") ? p : "/" + p;
     }
 }

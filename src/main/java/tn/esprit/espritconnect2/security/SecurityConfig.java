@@ -101,6 +101,7 @@ public class SecurityConfig {
                 // Support, Badges, Moderation
                 .requestMatchers("/api/badges/**").permitAll()
                 .requestMatchers("/api/support/**").permitAll()
+                .requestMatchers(HttpMethod.GET, ApiOfficePaths.FRONT_SUPPORT + "/files/**").permitAll()
                 .requestMatchers("/api/moderation/**").permitAll()
 
                 // Activity Tracking & AI Analysis
